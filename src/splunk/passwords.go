@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -125,7 +125,7 @@ func (s *SplunkAPI) CreatePassword(ctx context.Context, name, password, realm st
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusConflict {
 		// A StatusConflict 409 if the password was already created
-		b, _ := ioutil.ReadAll(res.Body)
+		b, _ := io.ReadAll(res.Body)
 		log.Println(string(b))
 		err := fmt.Errorf("received a non 201 response: %d", res.StatusCode)
 		return err
