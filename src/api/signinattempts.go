@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -75,7 +75,7 @@ func (e *EventsAPI) SignInAttemptsRequest(ctx context.Context, body interface{})
 		err := fmt.Errorf("could not make EventAPIRequest: %w", err)
 		return nil, err
 	}
-	resBody, err := ioutil.ReadAll(res.Body)
+	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		err := fmt.Errorf("could not read response: %w", err)
 		return nil, err
