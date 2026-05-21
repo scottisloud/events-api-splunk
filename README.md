@@ -2,6 +2,8 @@
 
 This repository contains code to integrate Splunk with 1Password's Events API. It includes a Splunk Add-on that meets Splunk's AppInspect requirements, binary source code, and make commands to build the project.
 
+This fork adds **multi-tenant** support: connect multiple 1Password accounts to one Splunk deployment, ingest into shared indexes, and filter events with a `tenant_id` field. See [docs/events-reporting-splunk-multi-tenant.md](docs/events-reporting-splunk-multi-tenant.md) for setup steps. The standard single-tenant flow is documented on the [1Password Support site](https://support.1password.com/events-reporting-splunk/).
+
 ## Directory Structure
 
 The top level directory only contains two files, this `README.md` and a `Makefile` which has all the commands to build the Splunk Add-on for various distributions as well as build the linux specific version for running the application locally in docker.

@@ -20,15 +20,26 @@ the scripted inputs (included in `onepassword_events_api/bin/`) will be triggere
 
 ## Multi-tenant support
 
-Additional 1Password tenants can be added from **Manage Tenants** in the app navigation. Each tenant stores its own Events API token and cursor files under `[tenant.<tenant_key>]` in `local/events_reporting.conf`. Events from all tenants land in the same Splunk indexes and include a `tenant_id` field for filtering (for example `index=* sourcetype="1password:insights:signin_attempts" tenant_id=acme-corp`).
+This build supports multiple 1Password tenants in one Splunk add-on installation.
+
+1. Complete **initial setup** (same as the [official Splunk guide](https://support.1password.com/events-reporting-splunk/)) for your first 1Password account — this becomes the **default** tenant (`tenant_id=default`).
+2. Open **Manage Tenants** in the app navigation to add more accounts. Each needs its own Events API token from 1Password.com.
+3. Search across tenants in shared indexes using `tenant_id`, for example:
+
+   ```spl
+   index=* sourcetype="1password:insights:signin_attempts" tenant_id=acme-corp
+   ```
+
+Full step-by-step instructions, token rotation, and troubleshooting: **[docs/events-reporting-splunk-multi-tenant.md](../../docs/events-reporting-splunk-multi-tenant.md)** in the repository root.
 
 The original setup flow continues to configure the **default** tenant via the `[config]` stanza and `events_api_token` storage password for backwards compatibility.
 
 ## Setup
 
-Click on the 1Password Application in the Apps navigation pane and follow the setup instructions. Once complete, you will be navigated to Search. Start seeing what data has already been ingested by filtering by the event source type, such as `index=* sourcetype="1password:insights:signin_attempts"` or `index=* sourcetype="1password:insights:item_usages"`. If you don't see any events, try increasing the length of time to "All time".
+Click on the 1Password Application in the Apps navigation pane and follow the setup instructions for the first tenant. Once complete, you will be navigated to Search. Start seeing what data has already been ingested by filtering by the event source type, such as `index=* sourcetype="1password:insights:signin_attempts"` or `index=* sourcetype="1password:insights:item_usages"`. If you don't see any events, try increasing the length of time to "All time".
 
-For more detailed setup instructions, check out our [support page](https://support.1password.com/events-reporting-splunk).
+- **First tenant:** [1Password Support — Events Reporting for Splunk](https://support.1password.com/events-reporting-splunk/)
+- **Additional tenants:** [Multi-tenant setup guide](../../docs/events-reporting-splunk-multi-tenant.md)
 
 ## Debugging
 

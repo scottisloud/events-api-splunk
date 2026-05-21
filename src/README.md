@@ -14,6 +14,8 @@ This application assumes it is running with the associated Splunk configuration 
 <br/><br/>
 Follow the compilation steps found in the this projects root `README.md` to build the source code and move the binaries to their appropriate location.
 <br/><br/>
+**Multi-tenant setup (operators):** see [docs/events-reporting-splunk-multi-tenant.md](../docs/events-reporting-splunk-multi-tenant.md). The standard single-tenant guide is on [1Password Support](https://support.1password.com/events-reporting-splunk/).
+<br/><br/>
 If you do not wish to run this application from within Splunk, you will need to create the necessary configuration and storage files as well as update the source code to point to these newly created files. This is currently _not_ supported by default.
 
 ## Program Flow

@@ -9,3 +9,7 @@
 7. Click 'Submit'
 8. Go to Settings -> Data Inputs -> Scripts -> and click Enable on the 1Password inputs you're interested in. Note that these scripts log to the default index unless configured to log elsewhere. Check out our [support page](https://support.1password.com/events-reporting-splunk/#step-3-set-up-the-1password-events-api-add-on) for more information.
 9. Click the 1Password Splunk app in the apps listing and search `sourcetype="1password:insights:signin_attempts"` or `sourcetype="1password:insights:item_usages"` to see your 1Password events. This data is ready to be analyzed, monitored and reported.
+
+### Multiple 1Password tenants
+
+If you installed a **multi-tenant** build from this repository, use the first account in step 6, then open the app and select **Manage Tenants** to add more. See [docs/events-reporting-splunk-multi-tenant.md](../docs/events-reporting-splunk-multi-tenant.md).
