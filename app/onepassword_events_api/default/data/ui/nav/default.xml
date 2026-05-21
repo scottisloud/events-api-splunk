@@ -6,4 +6,5 @@
     <view name="item_usage_dashboard" />
   </collection>
   <view name="setup_page_dashboard"/>
+  <view name="tenant_management_dashboard"/>
 </nav>

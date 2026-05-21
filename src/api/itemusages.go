@@ -49,14 +49,11 @@ type ItemUsageResponse struct {
 	Items []ItemUsage `json:"items"`
 }
 
-func (s *ItemUsageResponse) PrintEvents() error {
+func (s *ItemUsageResponse) PrintEvents(tenantID string) error {
 	for i, v := range s.Items {
-		raw, err := json.Marshal(v)
-		if err != nil {
-			err := fmt.Errorf("could not marshal event: %d, error: %s", i, err)
-			return err
+		if err := PrintJSONEvent(v, tenantID); err != nil {
+			return fmt.Errorf("could not print event: %d, error: %w", i, err)
 		}
-		fmt.Println(string(raw))
 	}
 	return nil
 }

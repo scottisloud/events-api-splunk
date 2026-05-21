@@ -3,6 +3,7 @@
 import * as Config from "./setup_configuration";
 import * as Splunk from "./splunk_helpers";
 import * as StoragePasswords from "./storage_passwords";
+import { promisify } from "./util.js";
 
 const INPUTS_CONF = "inputs";
 
@@ -64,6 +65,112 @@ export async function updateInputs(
       onepassword_name_space.app
     );
   }
+}
+
+export async function listTenants(splunk_js_sdk) {
+  const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
+    splunk_js_sdk,
+    onepassword_name_space
+  );
+
+  const tenants = [];
+  try {
+    const conf = await Splunk.get_configuration_file_accessor(
+      splunk_js_sdk_service,
+      CUSTOM_CONF
+    );
+    if (!conf) {
+      return tenants;
+    }
+    const stanzas = conf.list();
+    for (const stanza of stanzas) {
+      if (stanza.name.startsWith("tenant.")) {
+        const key = stanza.name.slice("tenant.".length);
+        const accessor = conf.item(stanza.name);
+        await promisify(accessor.fetch)();
+        const props = accessor.properties();
+        tenants.push({
+          tenantKey: key,
+          tenantId: props.tenantId || key,
+        });
+      }
+    }
+  } catch (e) {
+    // No events_reporting.conf yet.
+  }
+
+  return tenants;
+}
+
+export async function addTenant(splunk_js_sdk, authToken, tenantKey, tenantId) {
+  const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
+    splunk_js_sdk,
+    onepassword_name_space
+  );
+
+  const options = {
+    tenantId: tenantId,
+    enabled: true,
+    limit: 100,
+    startAt: "2020-01-01T00:00:00Z",
+    signInCursorFile: `"/etc/apps/onepassword_events_api/local/signin_cursor_store_${tenantKey}"`,
+    itemUsageCursorFile: `"/etc/apps/onepassword_events_api/local/itemusage_cursor_store_${tenantKey}"`,
+    auditEventsCursorFile: `"/etc/apps/onepassword_events_api/local/auditevents_cursor_store_${tenantKey}"`,
+  };
+
+  await Splunk.update_configuration_file(
+    splunk_js_sdk_service,
+    CUSTOM_CONF,
+    `tenant.${tenantKey}`,
+    options
+  );
+
+  const secretName =
+    tenantKey === "default" ? SECRET_NAME : `${SECRET_NAME}_${tenantKey}`;
+  await StoragePasswords.write_secret(
+    splunk_js_sdk_service,
+    SECRET_REALM,
+    secretName,
+    authToken
+  );
+
+  await Config.reload_splunk_app(
+    splunk_js_sdk_service,
+    onepassword_name_space.app
+  );
+}
+
+export async function removeTenant(splunk_js_sdk, tenantKey) {
+  if (tenantKey === "default") {
+    throw new Error("The default tenant cannot be removed.");
+  }
+
+  const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
+    splunk_js_sdk,
+    onepassword_name_space
+  );
+
+  const conf = await Splunk.get_configuration_file_accessor(
+    splunk_js_sdk_service,
+    CUSTOM_CONF
+  );
+  if (!conf) {
+    return;
+  }
+  const stanza = conf.item(`tenant.${tenantKey}`);
+  await promisify(stanza.fetch)();
+  await promisify(stanza.remove)();
+
+  await StoragePasswords.delete_secret(
+    splunk_js_sdk_service,
+    SECRET_REALM,
+    `${SECRET_NAME}_${tenantKey}`
+  );
+
+  await Config.reload_splunk_app(
+    splunk_js_sdk_service,
+    onepassword_name_space.app
+  );
 }
 
 export async function perform(

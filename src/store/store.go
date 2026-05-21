@@ -62,7 +62,11 @@ func rollFile(file *os.File, length int64) error {
 
 func OpenStore(filePath string) (*Store, error) {
 	log.Println("Opening store")
-	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	mode := os.FileMode(0666)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		mode = 0600
+	}
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, mode)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open cursor file: %w", err)
 	}

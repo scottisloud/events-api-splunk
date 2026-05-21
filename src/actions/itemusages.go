@@ -46,7 +46,7 @@ func StartItemUsages(cursorFile string, limit int, startAt *time.Time, eventsAPI
 			err := fmt.Errorf("ItemUsagesRequest request failed: %w", err)
 			panic(err)
 		}
-		err = res.PrintEvents()
+		err = res.PrintEvents(eventsAPI.TenantID)
 		if err != nil {
 			err := fmt.Errorf("PrintEvents failed: %w", err)
 			panic(err)
@@ -89,7 +89,7 @@ func StartItemUsages(cursorFile string, limit int, startAt *time.Time, eventsAPI
 				continue
 			}
 
-			err = res.PrintEvents()
+			err = res.PrintEvents(eventsAPI.TenantID)
 			if err != nil {
 				err := fmt.Errorf("PrintEvents failed: %w", err)
 				panic(err)

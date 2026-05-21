@@ -166,4 +166,28 @@ function update_stanza_properties(
   return promisify(configuration_stanza_accessor.update)(new_stanza_properties);
 }
 
-export { update_configuration_file };
+async function get_configuration_file_accessor(
+  splunk_js_sdk_service,
+  configuration_file_name
+) {
+  var splunk_js_sdk_service_configurations =
+    splunk_js_sdk_service.configurations({});
+  splunk_js_sdk_service_configurations = await promisify(
+    splunk_js_sdk_service_configurations.fetch
+  )();
+
+  if (!does_configuration_file_exist(
+    splunk_js_sdk_service_configurations,
+    configuration_file_name
+  )) {
+    return null;
+  }
+
+  var configuration_file_accessor = get_configuration_file(
+    splunk_js_sdk_service_configurations,
+    configuration_file_name
+  );
+  return promisify(configuration_file_accessor.fetch)();
+}
+
+export { update_configuration_file, get_configuration_file_accessor };

@@ -46,7 +46,7 @@ func StartSignIns(cursorFile string, limit int, startAt *time.Time, eventsAPI *a
 			err := fmt.Errorf("SignInCursorResetRequest request failed: %w", err)
 			panic(err)
 		}
-		err = res.PrintEvents()
+		err = res.PrintEvents(eventsAPI.TenantID)
 		if err != nil {
 			err := fmt.Errorf("PrintEvents failed: %w", err)
 			panic(err)
@@ -90,7 +90,7 @@ func StartSignIns(cursorFile string, limit int, startAt *time.Time, eventsAPI *a
 				continue
 			}
 
-			err = res.PrintEvents()
+			err = res.PrintEvents(eventsAPI.TenantID)
 			if err != nil {
 				err := fmt.Errorf("PrintEvents failed: %w", err)
 				panic(err)

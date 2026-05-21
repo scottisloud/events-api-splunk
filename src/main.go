@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
+	"sync"
 
 	"go.1password.io/eventsapi-splunk/actions"
 	events "go.1password.io/eventsapi-splunk/api"
@@ -15,83 +17,112 @@ import (
 	"go.1password.io/eventsapi-splunk/utils"
 )
 
-var EventBuildType string // Injected at build time so we can make multiple apps
+var EventBuildType string
 
 func main() {
 	log.Println("Booting...")
 	if EventBuildType == "" {
-		err := fmt.Errorf("missing EventBuildType flag")
-		panic(err)
+		panic(fmt.Errorf("missing EventBuildType flag"))
 	}
 
 	splunkHome := os.Getenv("SPLUNK_HOME")
 	if splunkHome == "" {
-		err := fmt.Errorf("SPLUNK_HOME environment variable must be set")
-		panic(err)
+		panic(fmt.Errorf("SPLUNK_HOME environment variable must be set"))
 	}
 
 	splunkEnv, err := config.NewSplunkEnv(splunkHome)
 	if err != nil {
-		err := fmt.Errorf("could not create new splunk env: %w", err)
-		panic(err)
+		panic(fmt.Errorf("could not create new splunk env: %w", err))
 	}
 
 	reader := bufio.NewReader(os.Stdin)
 	splunkSession, _, err := reader.ReadLine()
 	if err != nil {
-		err := fmt.Errorf("could not read session: %w", err)
-		panic(err)
+		panic(fmt.Errorf("could not read session: %w", err))
 	}
 
 	splunkAPI := splunk.NewSplunkAPI(string(splunkSession))
 
-	// Versions less than 1.5.0 of the Events API stored the token on disk
-	// If we find it, move it to the splunk storage/passwords service
+	tenants, err := splunkEnv.LoadTenants()
+	if err != nil {
+		panic(fmt.Errorf("could not load tenants: %w", err))
+	}
+
+	var wg sync.WaitGroup
+	for _, tenant := range tenants {
+		tenant := tenant
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("tenant %q (key=%s) panic: %v", tenant.TenantID, tenant.TenantKey, r)
+				}
+			}()
+			if err := processTenant(splunkEnv, splunkAPI, tenant); err != nil {
+				log.Printf("tenant %q (key=%s) failed: %v", tenant.TenantID, tenant.TenantKey, err)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, tenant config.TenantRuntime) error {
+	log.Printf("Processing tenant %q (key=%s)", tenant.TenantID, tenant.TenantKey)
+
+	cfg := tenant.Config
 	var eventsToken string
-	if splunkEnv.Config.AuthToken != "" {
-		eventsToken = splunkEnv.Config.AuthToken
-		err := actions.CreateEventsToken(context.TODO(), splunkAPI, eventsToken)
+	var err error
+
+	if cfg.AuthToken != "" && tenant.TenantKey == utils.DefaultTenantKey {
+		eventsToken = cfg.AuthToken
+		err = actions.CreateEventsToken(context.TODO(), splunkAPI, tenant.SecretName, eventsToken)
 		if err != nil {
-			err := fmt.Errorf("could not backup token: %w", err)
-			panic(err)
+			return fmt.Errorf("could not migrate token to storage passwords: %w", err)
 		}
-		splunkEnv.Config.AuthToken = "" // Remove token on disk
-		err = splunkEnv.UpdateConfig(splunkEnv.Config)
-		if err != nil {
-			err := fmt.Errorf("could not remove auth token: %w", err)
-			panic(err)
+		splunkEnv.Config.AuthToken = ""
+		if err := splunkEnv.UpdateConfig(splunkEnv.Config); err != nil {
+			return fmt.Errorf("could not remove auth token from disk: %w", err)
 		}
 	} else {
-		eventsToken, err = actions.GetEventsToken(context.TODO(), splunkAPI)
+		eventsToken, err = actions.GetEventsToken(context.TODO(), splunkAPI, tenant.SecretName)
 		if err != nil {
-			err := fmt.Errorf("could not get token: %w", err)
-			panic(err)
+			return fmt.Errorf("could not get token: %w", err)
 		}
 	}
 
 	jwt, err := utils.ParseJWTClaims(eventsToken)
 	if err != nil {
-		err := fmt.Errorf("could not parse jwt: %w", err)
-		panic(err)
+		return fmt.Errorf("could not parse jwt: %w", err)
 	}
 
-	url, err := jwt.GetEventsURL()
-	// The config url will be used if the token was generated before
-	// this update and does not contain a url
+	url := cfg.Url
+	eventsURL, err := jwt.GetEventsURL()
 	if err == nil {
-		splunkEnv.Config.Url = url
+		url = eventsURL
+	}
+	if url == "" {
+		return fmt.Errorf("missing events API url for tenant %q", tenant.TenantID)
 	}
 
 	eventsAPI := events.NewEventsAPI(eventsToken, url)
+	eventsAPI.TenantID = tenant.TenantID
+	startAt := cfg.StartAt
 
 	if jwt.Features.Contains(utils.SignInAttemptsFeatureScope) && EventBuildType == utils.SignInAttemptsFeatureScope {
-		cursorFile := path.Join(splunkEnv.Home, splunkEnv.Config.SignInCursorFile)
-		actions.StartSignIns(cursorFile, splunkEnv.Config.Limit, &splunkEnv.Config.StartAt, eventsAPI)
+		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.SignInCursorFile))
+		actions.StartSignIns(cursorFile, cfg.Limit, &startAt, eventsAPI)
 	} else if jwt.Features.Contains(utils.ItemUsageFeatureScope) && EventBuildType == utils.ItemUsageFeatureScope {
-		cursorFile := path.Join(splunkEnv.Home, splunkEnv.Config.ItemUsageCursorFile)
-		actions.StartItemUsages(cursorFile, splunkEnv.Config.Limit, &splunkEnv.Config.StartAt, eventsAPI)
+		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.ItemUsageCursorFile))
+		actions.StartItemUsages(cursorFile, cfg.Limit, &startAt, eventsAPI)
 	} else if jwt.Features.Contains(utils.AuditEventsFeatureScope) && EventBuildType == utils.AuditEventsFeatureScope {
-		cursorFile := path.Join(splunkEnv.Home, splunkEnv.Config.AuditEventsCursorFile)
-		actions.StartAuditEvents(cursorFile, splunkEnv.Config.Limit, &splunkEnv.Config.StartAt, eventsAPI)
+		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.AuditEventsCursorFile))
+		actions.StartAuditEvents(cursorFile, cfg.Limit, &startAt, eventsAPI)
 	}
+
+	return nil
+}
+
+func trimCursorPath(p string) string {
+	return strings.Trim(p, `"`)
 }

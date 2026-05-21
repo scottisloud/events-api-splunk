@@ -46,7 +46,7 @@ func StartAuditEvents(cursorFile string, limit int, startAt *time.Time, eventsAP
 			err := fmt.Errorf("AuditEventsRequest request failed: %w", err)
 			panic(err)
 		}
-		err = res.PrintEvents()
+		err = res.PrintEvents(eventsAPI.TenantID)
 		if err != nil {
 			err := fmt.Errorf("PrintEvents failed: %w", err)
 			panic(err)
@@ -89,7 +89,7 @@ func StartAuditEvents(cursorFile string, limit int, startAt *time.Time, eventsAP
 				continue
 			}
 
-			err = res.PrintEvents()
+			err = res.PrintEvents(eventsAPI.TenantID)
 			if err != nil {
 				err := fmt.Errorf("PrintEvents failed: %w", err)
 				panic(err)

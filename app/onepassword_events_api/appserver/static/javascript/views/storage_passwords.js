@@ -1,10 +1,7 @@
 import { promisify } from "./util.js";
 
 async function write_secret(splunk_js_sdk_service, realm, name, secret) {
-  // /servicesNS/<NAMESPACE_USERNAME>/<SPLUNK_APP_NAME>/storage/passwords/<REALM>%3A<NAME>%3A
-  var storage_passwords_accessor = splunk_js_sdk_service.storagePasswords({
-    // No namespace information provided
-  });
+  var storage_passwords_accessor = splunk_js_sdk_service.storagePasswords({});
   storage_passwords_accessor = await promisify(
     storage_passwords_accessor.fetch
   )();
@@ -17,19 +14,16 @@ async function write_secret(splunk_js_sdk_service, realm, name, secret) {
 
   if (password_exists) {
     await delete_storage_password(storage_passwords_accessor, realm, name);
-  }
-
-  // wait for password to be deleted
-  while (password_exists) {
-    storage_passwords_accessor = await promisify(
-      storage_passwords_accessor.fetch
-    )();
-
-    password_exists = does_storage_password_exist(
-      storage_passwords_accessor,
-      realm,
-      name
-    );
+    while (password_exists) {
+      storage_passwords_accessor = await promisify(
+        storage_passwords_accessor.fetch
+      )();
+      password_exists = does_storage_password_exist(
+        storage_passwords_accessor,
+        realm,
+        name
+      );
+    }
   }
 
   await create_storage_password_stanza(
@@ -38,6 +32,19 @@ async function write_secret(splunk_js_sdk_service, realm, name, secret) {
     name,
     secret
   );
+}
+
+async function delete_secret(splunk_js_sdk_service, realm, name) {
+  var storage_passwords_accessor = splunk_js_sdk_service.storagePasswords({});
+  storage_passwords_accessor = await promisify(
+    storage_passwords_accessor.fetch
+  )();
+
+  if (!does_storage_password_exist(storage_passwords_accessor, realm, name)) {
+    return;
+  }
+
+  await delete_storage_password(storage_passwords_accessor, realm, name);
 }
 
 function does_storage_password_exist(storage_passwords_accessor, realm, name) {
@@ -72,4 +79,4 @@ function create_storage_password_stanza(
   });
 }
 
-export { write_secret };
+export { write_secret, delete_secret };

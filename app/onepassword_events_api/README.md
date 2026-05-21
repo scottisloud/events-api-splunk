@@ -18,6 +18,12 @@ In the `onepassword_events_api/default/app.conf`'s, `[ui]` stanza there is a `se
 Once setup is finished, Splunk will need to be restarted in order to be aware of the new configuration variables. On startup,
 the scripted inputs (included in `onepassword_events_api/bin/`) will be triggered and Splunk will index the retrieved 1Password events.
 
+## Multi-tenant support
+
+Additional 1Password tenants can be added from **Manage Tenants** in the app navigation. Each tenant stores its own Events API token and cursor files under `[tenant.<tenant_key>]` in `local/events_reporting.conf`. Events from all tenants land in the same Splunk indexes and include a `tenant_id` field for filtering (for example `index=* sourcetype="1password:insights:signin_attempts" tenant_id=acme-corp`).
+
+The original setup flow continues to configure the **default** tenant via the `[config]` stanza and `events_api_token` storage password for backwards compatibility.
+
 ## Setup
 
 Click on the 1Password Application in the Apps navigation pane and follow the setup instructions. Once complete, you will be navigated to Search. Start seeing what data has already been ingested by filtering by the event source type, such as `index=* sourcetype="1password:insights:signin_attempts"` or `index=* sourcetype="1password:insights:item_usages"`. If you don't see any events, try increasing the length of time to "All time".

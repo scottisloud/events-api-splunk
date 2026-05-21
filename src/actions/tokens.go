@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"go.1password.io/eventsapi-splunk/splunk"
+	"go.1password.io/eventsapi-splunk/utils"
 )
 
-func GetEventsToken(ctx context.Context, splunkAPI *splunk.SplunkAPI) (string, error) {
-	splunkRes, err := splunkAPI.GetPasswords(ctx, "events_api_token", "events_reporting_realm")
+func GetEventsToken(ctx context.Context, splunkAPI *splunk.SplunkAPI, secretName string) (string, error) {
+	splunkRes, err := splunkAPI.GetPasswords(ctx, secretName, utils.SecretRealm)
 	if err != nil {
 		err := fmt.Errorf("GetEventsToken call to splunk failed: %w", err)
 		return "", err
@@ -21,8 +22,8 @@ func GetEventsToken(ctx context.Context, splunkAPI *splunk.SplunkAPI) (string, e
 	return splunkRes.Entry.Content.Dict.Key[0].Text, nil
 }
 
-func CreateEventsToken(ctx context.Context, splunkAPI *splunk.SplunkAPI, authToken string) error {
-	err := splunkAPI.CreatePassword(ctx, "events_api_token", authToken, "events_reporting_realm")
+func CreateEventsToken(ctx context.Context, splunkAPI *splunk.SplunkAPI, secretName, authToken string) error {
+	err := splunkAPI.CreatePassword(ctx, secretName, authToken, utils.SecretRealm)
 	if err != nil {
 		err := fmt.Errorf("CreateEventsToken call to splunk failed: %w", err)
 		return err

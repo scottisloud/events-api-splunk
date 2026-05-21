@@ -18,7 +18,9 @@ If you do not wish to run this application from within Splunk, you will need to 
 
 ## Program Flow
 
-On startup the `main.go` file will read the configuration file for various values, most importantly your 1Password Events API token. It will then check which scopes your token provides and from there continue down an event type path. Each event type path follows the same logic.
+On startup the `main.go` file will read `events_reporting.conf` for one or more tenants. Legacy deployments with only a `[config]` stanza run as a single **default** tenant. Additional tenants are configured under `[tenant.<tenant_key>]` stanzas, each with its own Splunk storage password and cursor files. Every event written to stdout includes a `tenant_id` field for filtering in shared indexes.
+
+For each enabled tenant, the process loads that tenant's Events API token, checks JWT feature scopes, and runs the matching event-type poller (in a dedicated goroutine per tenant). Each event type path follows the same logic.
 <br/><br/>
 First it checks if there is a cursor file which is a temporary history of the last requests to the API. If one exists, it will use this cursor to get the next set of events, and on success update the history. The program will also roll the history file to control the file's length. If there is no history, a new file is created and the limit and start date values are used to create the first request to the 1Password Events API. The cursor file is also updated after this request.
 

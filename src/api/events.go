@@ -17,6 +17,7 @@ type EventsAPI struct {
 	client    *http.Client
 	AuthToken string
 	BaseUrl   string
+	TenantID  string
 }
 
 var Version string

@@ -53,14 +53,11 @@ type AuditEventsResponse struct {
 	AuditEvents []AuditEvent `json:"items"`
 }
 
-func (s *AuditEventsResponse) PrintEvents() error {
+func (s *AuditEventsResponse) PrintEvents(tenantID string) error {
 	for i, v := range s.AuditEvents {
-		raw, err := json.Marshal(v)
-		if err != nil {
-			err := fmt.Errorf("could not marshal event: %d, error: %s", i, err)
-			return err
+		if err := PrintJSONEvent(v, tenantID); err != nil {
+			return fmt.Errorf("could not print event: %d, error: %w", i, err)
 		}
-		fmt.Println(string(raw))
 	}
 	return nil
 }
