@@ -1,6 +1,12 @@
 # Run make new_version after changing this version
 VERSION=1.14.1
 
+GOX := $(shell go env GOPATH)/bin/gox
+
+.PHONY: ensure-gox
+ensure-gox:
+	@test -x "$(GOX)" || (echo "Installing gox to $(GOX)..." && go install github.com/mitchellh/gox@latest)
+
 .PHONY: compile_app_binary
 compile_app_binary:
 	@cd src && env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.EventBuildType=signinattempts -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)" -o ../app/onepassword_events_api/bin/signin_attempts
@@ -14,12 +20,12 @@ compile_app_binary:
 clean:
 	@cd app && $(MAKE) clean
 .PHONY: build_all_binaries
-build_all_binaries:
+build_all_binaries: ensure-gox
 	@rm -rf builds/bin && mkdir builds/bin
 	@cd app/onepassword_events_api && npm run build-release
-	@cd src && gox -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/signin_attempts" -ldflags '-s -X main.EventBuildType=signinattempts -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
-	@cd src && gox -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/item_usages" -ldflags '-s -X main.EventBuildType=itemusages -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
-	@cd src && gox -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/audit_events" -ldflags '-s -X main.EventBuildType=auditevents -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
+	@cd src && "$(GOX)" -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/signin_attempts" -ldflags '-s -X main.EventBuildType=signinattempts -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
+	@cd src && "$(GOX)" -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/item_usages" -ldflags '-s -X main.EventBuildType=itemusages -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
+	@cd src && "$(GOX)" -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/audit_events" -ldflags '-s -X main.EventBuildType=auditevents -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
 
 .PHONY: build build_all_apps
 # Package the Splunk app for all platforms (requires gox and npm build-release).

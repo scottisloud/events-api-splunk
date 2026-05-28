@@ -14,14 +14,19 @@ const appConfBuild = {
   to: `build = ${package.version.replace(/\./g, "")}`,
 };
 
+const dashboardViews = [
+  "./default/data/ui/views/setup_page_dashboard.xml",
+  "./default/data/ui/views/tenant_management_dashboard.xml",
+];
+
 const setupXMLJSHash = {
-  files: "./default/data/ui/views/setup_page_dashboard.xml",
+  files: dashboardViews,
   from: /script\=\"build\/.*\.js\"/,
   to: `script="build/${manifest["main.js"]}"`,
 };
 
 const setupXMLCSSHash = {
-  files: "./default/data/ui/views/setup_page_dashboard.xml",
+  files: dashboardViews,
   from: /stylesheet\=\"build\/.*\.css\"/,
   to: `stylesheet="build/${manifest["main.css"]}"`,
 };
