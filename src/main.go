@@ -118,6 +118,11 @@ func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, ten
 	} else if jwt.Features.Contains(utils.AuditEventsFeatureScope) && EventBuildType == utils.AuditEventsFeatureScope {
 		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.AuditEventsCursorFile))
 		actions.StartAuditEvents(cursorFile, cfg.Limit, &startAt, eventsAPI)
+	} else {
+		log.Printf(
+			"tenant %q (key=%s): token missing scope %q for this input; skipping",
+			tenant.TenantID, tenant.TenantKey, EventBuildType,
+		)
 	}
 
 	return nil

@@ -156,6 +156,7 @@ Same as the [official “Update a bearer token in Splunk”](https://support.1pa
 | Symptom | What to check |
 | --- | --- |
 | No events for one tenant | Token valid in 1Password; correct account; scripted inputs enabled; `splunkd.log` for `tenant "<name>" failed` |
+| `panic: could not decode toml` on `tenantId = mspc` | Splunk wrote an unquoted `tenantId`; use `tenantId = "mspc"` or upgrade to a build that normalizes this automatically |
 | Duplicate tenant error on add | That 1Password endpoint is already configured (same JWT `aud`) |
 | All tenants stopped | Splunk or forwarder connectivity; not specific to multi-tenant |
 | Wrong tenant in results | Verify `tenant_id` in raw event JSON; check label used when adding tenant |

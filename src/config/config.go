@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -81,10 +82,13 @@ func NewSplunkEnv(splunkHome string) (*SplunkEnv, error) {
 	}
 	defer configFile.Close()
 
-	br := utfbom.SkipOnly(configFile)
+	data, err := io.ReadAll(utfbom.SkipOnly(configFile))
+	if err != nil {
+		return nil, fmt.Errorf("could not read config file: %w", err)
+	}
 
-	raw := rawConfigFile{}
-	if _, err := toml.DecodeReader(br, &raw); err != nil {
+	raw, err := decodeEventsReportingConf(data)
+	if err != nil {
 		return nil, fmt.Errorf("could not decode toml config file: %w", err)
 	}
 

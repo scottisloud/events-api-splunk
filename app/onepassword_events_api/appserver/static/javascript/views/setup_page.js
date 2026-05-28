@@ -109,7 +109,8 @@ export async function addTenant(splunk_js_sdk, authToken, tenantKey, tenantId) {
   );
 
   const options = {
-    tenantId: tenantId,
+    // Quoted for Go TOML parser (unquoted "mspc" breaks decode).
+    tenantId: `"${tenantId}"`,
     enabled: true,
     limit: 100,
     startAt: "2020-01-01T00:00:00Z",
