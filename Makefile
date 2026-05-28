@@ -21,8 +21,11 @@ build_all_binaries:
 	@cd src && gox -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/item_usages" -ldflags '-s -X main.EventBuildType=itemusages -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
 	@cd src && gox -arch="amd64 arm" -os="linux windows freebsd openbsd" -osarch="darwin/amd64" -output="../builds/bin/{{.OS}}_{{.Arch}}/onepassword_events_api/bin/audit_events" -ldflags '-s -X main.EventBuildType=auditevents -X go.1password.io/eventsapi-splunk/api.Version=$(VERSION)' .
 
-.PHONY: build_all_apps
-build_all_apps: clean
+.PHONY: build build_all_apps
+# Package the Splunk app for all platforms (requires gox and npm build-release).
+build: build_all_apps
+
+build_all_apps: clean build_all_binaries
 	@cp -R src app/onepassword_events_api/lib/item_usages
 	@cp -R src app/onepassword_events_api/lib/signin_attempts
 	@cp -R src app/onepassword_events_api/lib/audit_events

@@ -34,4 +34,5 @@ If you do not have `go` locally installed, you can find installation steps [here
 - `make new_version`
   This command will update the JS portion of the Splunk Add-on to `Makefile VERSION` and build a release bundle for the web app.
 
-- `make build_all_binaries build_all_apps` will first compile the `src` code to various Operating System distributions, and then bundle them with the Splunk specific configurations (found in `app`). The output will be found in `builds/bin`.
+- `make build_all_apps` (or `make build`) compiles binaries for all platforms, bundles the Splunk app, and writes tarballs under `builds/bin`. This runs `build_all_binaries` automatically; you do not need to invoke it separately first.
+- `make build_all_binaries` only cross-compiles Go binaries and runs the setup UI webpack build (creates `builds/bin`).
