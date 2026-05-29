@@ -21,12 +21,13 @@ func (e *EventsAPI) Introspect(ctx context.Context) (*IntrospectResponse, error)
 		err := fmt.Errorf("could not make EventAPIRequest: %w", err)
 		return nil, err
 	}
+	defer res.Body.Close()
+
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		err := fmt.Errorf("could not read response: %w", err)
 		return nil, err
 	}
-	res.Body.Close()
 
 	introspectRes := &IntrospectResponse{}
 	err = json.Unmarshal(resBody, introspectRes)

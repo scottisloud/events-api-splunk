@@ -71,7 +71,15 @@ const (
 	defaultSignInCursor      = `"/etc/apps/onepassword_events_api/local/signin_cursor_store"`
 	defaultItemUsageCursor   = `"/etc/apps/onepassword_events_api/local/itemusage_cursor_store"`
 	defaultAuditEventsCursor = `"/etc/apps/onepassword_events_api/local/auditevents_cursor_store"`
+
+	// defaultLimit is the page size used when a tenant (and the legacy config)
+	// leaves Limit unset.
+	defaultLimit = 100
 )
+
+// defaultStartAt is the earliest event timestamp polled when no StartAt is
+// configured for a tenant or the legacy config.
+var defaultStartAt = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // NewSplunkEnv loads events_reporting.conf including legacy [config] and [tenant.*] stanzas.
 func NewSplunkEnv(splunkHome string) (*SplunkEnv, error) {
@@ -220,8 +228,8 @@ func (e *SplunkEnv) buildTenantRuntime(tenantKey string, tc TenantConfig, legacy
 
 	cfg := Config{
 		Url:                   firstNonEmpty(tc.Url, e.Config.Url),
-		Limit:                 firstPositiveInt(tc.Limit, e.Config.Limit, 100),
-		StartAt:               firstNonZeroTime(tc.StartAt, e.Config.StartAt),
+		Limit:                 firstPositiveInt(tc.Limit, e.Config.Limit, defaultLimit),
+		StartAt:               firstNonZeroTime(tc.StartAt, e.Config.StartAt, defaultStartAt),
 		SignInCursorFile:      signInCursor,
 		ItemUsageCursorFile:   itemUsageCursor,
 		AuditEventsCursorFile: auditEventsCursor,
@@ -278,22 +286,26 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+// firstPositiveInt returns the first value greater than zero, or 0 if none are.
+// Callers pass an explicit default as the final argument.
 func firstPositiveInt(values ...int) int {
 	for _, v := range values {
 		if v > 0 {
 			return v
 		}
 	}
-	return 100
+	return 0
 }
 
+// firstNonZeroTime returns the first non-zero time, or the zero time if none are.
+// Callers pass an explicit default as the final argument.
 func firstNonZeroTime(values ...time.Time) time.Time {
 	for _, v := range values {
 		if !v.IsZero() {
 			return v
 		}
 	}
-	return time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	return time.Time{}
 }
 
 // ConsumePendingCursorCleanups deletes cursor files queued for removal and clears the queue.
@@ -315,28 +327,6 @@ func (e *SplunkEnv) ConsumePendingCursorCleanups() error {
 	}
 
 	e.Cleanup.PendingKeys = strings.Join(remaining, ",")
-	return e.writeRawConfig(rawConfigFile{
-		Config:  e.Config,
-		Tenants: e.Tenants,
-		Cleanup: e.Cleanup,
-	})
-}
-
-// QueueCursorCleanup appends a tenant key to the pending cursor cleanup list.
-func (e *SplunkEnv) QueueCursorCleanup(tenantKey string) error {
-	if err := utils.ValidateTenantKey(tenantKey); err != nil {
-		return err
-	}
-	for _, key := range strings.Split(e.Cleanup.PendingKeys, ",") {
-		if strings.TrimSpace(key) == tenantKey {
-			return nil
-		}
-	}
-	if e.Cleanup.PendingKeys == "" {
-		e.Cleanup.PendingKeys = tenantKey
-	} else {
-		e.Cleanup.PendingKeys += "," + tenantKey
-	}
 	return e.writeRawConfig(rawConfigFile{
 		Config:  e.Config,
 		Tenants: e.Tenants,

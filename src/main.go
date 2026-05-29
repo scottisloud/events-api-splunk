@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"go.1password.io/eventsapi-splunk/actions"
 	events "go.1password.io/eventsapi-splunk/api"
@@ -17,10 +18,33 @@ import (
 
 var EventBuildType string
 
+// feed describes one Events API feed: which cursor file it uses and how to start
+// polling it. Each binary is compiled for exactly one feed (selected by the
+// EventBuildType ldflag), and feeds is keyed by the matching JWT feature scope.
+type feed struct {
+	cursorFile func(config.Config) string
+	start      func(cursorFile string, limit int, startAt *time.Time, eventsAPI *events.EventsAPI)
+}
+
+var feeds = map[string]feed{
+	utils.SignInAttemptsFeatureScope: {
+		cursorFile: func(c config.Config) string { return c.SignInCursorFile },
+		start:      actions.StartSignIns,
+	},
+	utils.ItemUsageFeatureScope: {
+		cursorFile: func(c config.Config) string { return c.ItemUsageCursorFile },
+		start:      actions.StartItemUsages,
+	},
+	utils.AuditEventsFeatureScope: {
+		cursorFile: func(c config.Config) string { return c.AuditEventsCursorFile },
+		start:      actions.StartAuditEvents,
+	},
+}
+
 func main() {
 	log.Println("Booting...")
-	if EventBuildType == "" {
-		panic(fmt.Errorf("missing EventBuildType flag"))
+	if _, ok := feeds[EventBuildType]; !ok {
+		panic(fmt.Errorf("invalid EventBuildType %q", EventBuildType))
 	}
 
 	splunkHome := os.Getenv("SPLUNK_HOME")
@@ -52,7 +76,6 @@ func main() {
 
 	var wg sync.WaitGroup
 	for _, tenant := range tenants {
-		tenant := tenant
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -117,30 +140,20 @@ func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, ten
 	eventsAPI.TenantID = tenant.TenantID
 	startAt := cfg.StartAt
 
-	if jwt.Features.Contains(utils.SignInAttemptsFeatureScope) && EventBuildType == utils.SignInAttemptsFeatureScope {
-		cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, cfg.SignInCursorFile)
-		if err != nil {
-			return fmt.Errorf("invalid sign-in cursor path: %w", err)
-		}
-		actions.StartSignIns(cursorFile, cfg.Limit, &startAt, eventsAPI)
-	} else if jwt.Features.Contains(utils.ItemUsageFeatureScope) && EventBuildType == utils.ItemUsageFeatureScope {
-		cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, cfg.ItemUsageCursorFile)
-		if err != nil {
-			return fmt.Errorf("invalid item usage cursor path: %w", err)
-		}
-		actions.StartItemUsages(cursorFile, cfg.Limit, &startAt, eventsAPI)
-	} else if jwt.Features.Contains(utils.AuditEventsFeatureScope) && EventBuildType == utils.AuditEventsFeatureScope {
-		cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, cfg.AuditEventsCursorFile)
-		if err != nil {
-			return fmt.Errorf("invalid audit events cursor path: %w", err)
-		}
-		actions.StartAuditEvents(cursorFile, cfg.Limit, &startAt, eventsAPI)
-	} else {
+	f := feeds[EventBuildType]
+	if !jwt.Features.Contains(EventBuildType) {
 		log.Printf(
 			"tenant %q (key=%s): token missing scope %q for this input; skipping",
 			tenant.TenantID, tenant.TenantKey, EventBuildType,
 		)
+		return nil
 	}
+
+	cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, f.cursorFile(cfg))
+	if err != nil {
+		return fmt.Errorf("invalid %s cursor path: %w", EventBuildType, err)
+	}
+	f.start(cursorFile, cfg.Limit, &startAt, eventsAPI)
 
 	return nil
 }
