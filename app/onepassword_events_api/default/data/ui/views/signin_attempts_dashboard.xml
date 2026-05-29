@@ -15,13 +15,26 @@
       <choice value="email">User Email</choice>
       <choice value="name">User Name</choice>
     </input>
+    <input type="dropdown" token="tenant_id">
+      <label>Tenant</label>
+      <choice value="*">All tenants</choice>
+      <search>
+        <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" | stats count by tenant_id | sort tenant_id</query>
+        <earliest>-90d@d</earliest>
+        <latest>now</latest>
+      </search>
+      <fieldForLabel>tenant_id</fieldForLabel>
+      <fieldForValue>tenant_id</fieldForValue>
+      <default>*</default>
+      <selectFirstChoice>false</selectFirstChoice>
+    </input>
   </fieldset>
   <row>
     <panel>
       <map>
         <title>Signin Attempts Map</title>
         <search>
-          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" | iplocation client.ip_address | lookup geo_countries longitude as lon, latitude as lat | stats count by Country | geom geo_countries featureIdField=Country</query>
+          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" tenant_id=$tenant_id$ | iplocation client.ip_address | lookup geo_countries longitude as lon, latitude as lat | stats count by Country | geom geo_countries featureIdField=Country</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -41,7 +54,7 @@
       <chart>
         <title>Signin Attempts By Category</title>
         <search>
-          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" | timechart count by category</query>
+          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" tenant_id=$tenant_id$ | timechart count by category</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -57,7 +70,7 @@
       <chart>
         <title>Categories</title>
         <search>
-          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" | stats count by category</query>
+          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" tenant_id=$tenant_id$ | stats count by category</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -71,7 +84,7 @@
       <chart>
         <title>Types</title>
         <search>
-          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" | stats count by type</query>
+          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" tenant_id=$tenant_id$ | stats count by type</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
@@ -86,7 +99,7 @@
       <chart>
         <title>Top Failed Sign-ins</title>
         <search>
-          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts"| spath category | search category!=success |  stats count by target_user.$top_users_by$ | sort - count</query>
+          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" tenant_id=$tenant_id$ | spath category | search category!=success |  stats count by target_user.$top_users_by$ | sort - count</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -105,7 +118,7 @@
       <chart>
         <title>Top Sign-ins</title>
         <search>
-          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts"| spath category | search category=success |  stats count by target_user.$top_users_by$ | sort - count</query>
+          <query>`1password_signin_attempts_index` sourcetype="1password:insights:signin_attempts" tenant_id=$tenant_id$ | spath category | search category=success |  stats count by target_user.$top_users_by$ | sort - count</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
