@@ -60,6 +60,21 @@ export async function tenantKeyFromAudience(audience) {
   return slug;
 }
 
+export function normalizeTenantIdFromConfig(value) {
+  if (value == null) {
+    return "";
+  }
+  let normalized = String(value).trim();
+  if (
+    normalized.length >= 2 &&
+    normalized.startsWith('"') &&
+    normalized.endsWith('"')
+  ) {
+    normalized = normalized.slice(1, -1);
+  }
+  return normalized;
+}
+
 export function validateTenantId(tenantId) {
   if (!TENANT_ID_PATTERN.test(tenantId)) {
     return "tenant_id may only contain letters, numbers, underscores, and hyphens (max 64 characters).";

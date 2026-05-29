@@ -4,7 +4,11 @@ import * as Config from "./setup_configuration";
 import * as Splunk from "./splunk_helpers";
 import * as StoragePasswords from "./storage_passwords";
 import { promisify } from "./util.js";
-import { parseJWTPayload, validateTenantKey } from "./tenant_helpers.js";
+import {
+  parseJWTPayload,
+  validateTenantKey,
+  normalizeTenantIdFromConfig,
+} from "./tenant_helpers.js";
 
 const INPUTS_CONF = "inputs";
 
@@ -90,9 +94,10 @@ export async function listTenants(splunk_js_sdk) {
         const accessor = conf.item(stanza.name);
         await promisify(accessor.fetch)();
         const props = accessor.properties();
+        const tenantId = normalizeTenantIdFromConfig(props.tenantId);
         tenants.push({
           tenantKey: key,
-          tenantId: props.tenantId || key,
+          tenantId: tenantId || key,
         });
       }
     }
