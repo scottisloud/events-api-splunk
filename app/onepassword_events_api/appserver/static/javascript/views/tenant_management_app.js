@@ -42,7 +42,7 @@ export default class TenantManagementPage extends React.Component {
 
     const parsed = parseJWTPayload(this.state.authToken);
     const audience = parsed.payload.aud[0];
-    const tenantKey = tenantKeyFromAudience(audience);
+    const tenantKey = await tenantKeyFromAudience(audience);
     const keyError = validateTenantKey(tenantKey);
     if (keyError) {
       this.setState({ result: { success: false, error: keyError } });

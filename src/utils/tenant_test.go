@@ -1,6 +1,9 @@
 package utils
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestTenantKeyFromAudience(t *testing.T) {
 	key, err := TenantKeyFromAudience("events.1password.com")
@@ -9,6 +12,30 @@ func TestTenantKeyFromAudience(t *testing.T) {
 	}
 	if key != "events_1password_com" {
 		t.Fatalf("got %q", key)
+	}
+}
+
+func TestTenantKeyFromAudienceEmptySlug(t *testing.T) {
+	key, err := TenantKeyFromAudience("!@#")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(key, "t_") || len(key) != 18 {
+		t.Fatalf("expected t_ + 16 hex chars, got %q", key)
+	}
+}
+
+func TestTenantKeyFromAudienceLongSlug(t *testing.T) {
+	audience := strings.Repeat("a", 60) + ".example.com"
+	key, err := TenantKeyFromAudience(audience)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(key) != 41 {
+		t.Fatalf("expected 32 char slug + _ + 8 hex chars, got len %d (%q)", len(key), key)
+	}
+	if !strings.HasPrefix(key, strings.Repeat("a", 32)+"_") {
+		t.Fatalf("unexpected long-slug key prefix: %q", key)
 	}
 }
 

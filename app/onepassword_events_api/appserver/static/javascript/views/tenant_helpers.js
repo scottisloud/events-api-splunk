@@ -27,26 +27,37 @@ export function validateJWT(token) {
   }
 }
 
-export function tenantKeyFromAudience(audience) {
-  let slug = audience.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_");
+function audienceSlug(audience) {
+  let slug = audience
+    .split("")
+    .map((char) => (/[a-zA-Z0-9]/.test(char) ? char : "_"))
+    .join("");
   slug = slug.replace(/^_+|_+$/g, "");
-  if (!slug) {
-    return "t_" + hashAudience(audience).slice(0, 16);
-  }
-  if (slug.length > 48) {
-    return slug.slice(0, 32) + "_" + hashAudience(audience).slice(0, 8);
+  while (slug.includes("__")) {
+    slug = slug.replace(/__/g, "_");
   }
   return slug;
 }
 
-function hashAudience(audience) {
-  // Simple deterministic hash for fallback keys (setup-time only).
-  let h = 0;
-  for (let i = 0; i < audience.length; i++) {
-    h = (h << 5) - h + audience.charCodeAt(i);
-    h |= 0;
+async function sha256HexPrefix(input, numBytes) {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(digest, 0, numBytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
+}
+
+// Must stay aligned with utils.TenantKeyFromAudience in Go.
+export async function tenantKeyFromAudience(audience) {
+  const slug = audienceSlug(audience);
+  if (!slug) {
+    return "t_" + (await sha256HexPrefix(audience, 8));
   }
-  return Math.abs(h).toString(16);
+  if (slug.length > 48) {
+    return slug.slice(0, 32) + "_" + (await sha256HexPrefix(audience, 4));
+  }
+  return slug;
 }
 
 export function validateTenantId(tenantId) {

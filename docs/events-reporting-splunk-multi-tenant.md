@@ -147,9 +147,41 @@ Same as the [official “Update a bearer token in Splunk”](https://support.1pa
 ## Security notes
 
 - Tokens are stored in Splunk **storage/passwords** (encrypted by Splunk). Each tenant has its own password stanza; updating one tenant does not delete others.
-- Any Splunk role with access to the app namespace can read stored tokens. Restrict app permissions as you would for the standard add-on.
+- **Setup** and **Manage Tenants** views require the Splunk `admin` role. Direct edits to `events_reporting.conf` stanzas also require `admin`.
+- Any Splunk role that can search the shared indexes can see events from **all** connected tenants. Dashboard `tenant_id` filters are not access controls.
 - Use `tenant_id` labels for searches only. File paths and secrets use the internal `tenant_key`, not the display label.
 - See [About 1Password Events Reporting security](https://support.1password.com/events-reporting-security/) for general Events API security practices.
+
+### Restricting access by tenant (recommended at scale)
+
+Because all tenants share the same indexes, use Splunk role-based access in addition to dashboard filters:
+
+1. **Separate indexes per tenant** (strongest isolation): route each tenant to its own index in `inputs.conf` and grant roles index-scoped access. This requires custom configuration beyond the default shared-index setup.
+2. **Search filters on roles**: for shared indexes, assign each team a Splunk role with a `srchFilter` such as `tenant_id=acme-corp` so searches only return their tenant's events.
+3. **Field-level security**: optionally hide or mask `tenant_id` values outside a role's allowed set.
+
+These controls are Splunk platform settings, not enforced by the add-on UI alone.
+
+## Scale and performance (many tenants)
+
+The multi-tenant build is designed to poll **each enabled tenant concurrently** (one goroutine per tenant, per scripted input). With **19 tenants** and all three event types enabled, expect roughly:
+
+| Resource | Approximate load |
+| --- | --- |
+| Scripted input processes | 3 long-running processes |
+| Concurrent tenant pollers | 19 per process (57 total poll loops) |
+| Idle API requests | ~5–6 requests/second across all tenants and inputs (10s idle backoff) |
+| Cursor files | up to 57 under `local/` (19 tenants × 3 event types) |
+| Storage passwords | 1 per tenant |
+
+**Operational tips:**
+
+- Confirm [1Password Events API rate limits](https://support.1password.com/events-reporting-security/) with 1Password for your expected volume before production rollout.
+- Watch `$SPLUNK_HOME/var/log/splunk/splunkd.log` for `tenant "<name>" failed` after adding many tenants.
+- Adding tenants triggers an app reload; batch tenant onboarding when possible.
+- Tenant order in config is processed deterministically (sorted by `tenant_key`).
+
+**Capacity testing:** before deploying 19 production tenants, run a staging Splunk instance with representative tokens and verify indexing lag, search latency, and API error rates under your expected event volume.
 
 ## Troubleshooting
 

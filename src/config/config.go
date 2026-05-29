@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -112,7 +113,14 @@ func (e *SplunkEnv) LoadTenants() ([]TenantRuntime, error) {
 	var runtimes []TenantRuntime
 
 	if len(e.Tenants) > 0 {
-		for tenantKey, tc := range e.Tenants {
+		tenantKeys := make([]string, 0, len(e.Tenants))
+		for tenantKey := range e.Tenants {
+			tenantKeys = append(tenantKeys, tenantKey)
+		}
+		sort.Strings(tenantKeys)
+
+		for _, tenantKey := range tenantKeys {
+			tc := e.Tenants[tenantKey]
 			if err := utils.ValidateTenantKey(tenantKey); err != nil {
 				return nil, fmt.Errorf("invalid tenant_key %q: %w", tenantKey, err)
 			}

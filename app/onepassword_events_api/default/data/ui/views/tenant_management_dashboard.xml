@@ -1,8 +1,8 @@
 <dashboard isDashboard="false"
            hideTitle="true"
            version="1.1"
-           script="build/main_cb47782662890e995a71.js"
-           stylesheet="build/main_f258fb22871ac046d2fc.css">
+           script="build/main_4ee6cf794dba3f43289f.js"
+           stylesheet="build/main_788ab09e1ca585bc3a35.css">
     <label>Manage Tenants</label>
     <row>
         <panel>

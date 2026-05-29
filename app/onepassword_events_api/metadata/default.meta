@@ -1,0 +1,22 @@
+[]
+access = read : [ * ]
+export = system
+
+[view:setup_page_dashboard]
+access = admin
+
+[view:tenant_management_dashboard]
+access = admin
+
+[events_reporting]
+access = read : [ * ]
+export = system
+
+[events_reporting/config]
+access = write : [ admin ]
+
+[events_reporting/tenant]
+access = write : [ admin ]
+
+[events_reporting/cleanup]
+access = write : [ admin ]

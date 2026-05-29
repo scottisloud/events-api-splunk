@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 
 	"go.1password.io/eventsapi-splunk/actions"
 	events "go.1password.io/eventsapi-splunk/api"
@@ -49,8 +50,12 @@ func main() {
 		panic(fmt.Errorf("could not load tenants: %w", err))
 	}
 
+	var wg sync.WaitGroup
 	for _, tenant := range tenants {
-		func() {
+		tenant := tenant
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
 					log.Printf("tenant %q (key=%s) panic: %v", tenant.TenantID, tenant.TenantKey, r)
@@ -61,6 +66,7 @@ func main() {
 			}
 		}()
 	}
+	wg.Wait()
 }
 
 func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, tenant config.TenantRuntime) error {
