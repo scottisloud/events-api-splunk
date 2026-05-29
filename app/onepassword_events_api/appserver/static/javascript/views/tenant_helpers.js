@@ -82,27 +82,6 @@ export function eventsURLFromAudience(audience) {
   return `https://${audience}`;
 }
 
-export async function introspectEventsToken(authToken, audience) {
-  const baseURL = eventsURLFromAudience(audience);
-  if (!baseURL) {
-    return "Please generate a new token.";
-  }
-
-  try {
-    const response = await fetch(`${baseURL}/api/auth/introspect`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
-    if (!response.ok) {
-      return "This Events API token is invalid or has been revoked.";
-    }
-  } catch (error) {
-    return "Could not verify this Events API token with 1Password. Check network access from Splunk Web and try again.";
-  }
-}
-
 export function secretNameForTenantKey(tenantKey) {
   if (tenantKey === "default") {
     return "events_api_token";

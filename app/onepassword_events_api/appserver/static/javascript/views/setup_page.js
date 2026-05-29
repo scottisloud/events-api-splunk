@@ -4,11 +4,7 @@ import * as Config from "./setup_configuration";
 import * as Splunk from "./splunk_helpers";
 import * as StoragePasswords from "./storage_passwords";
 import { promisify } from "./util.js";
-import {
-  introspectEventsToken,
-  parseJWTPayload,
-  validateTenantKey,
-} from "./tenant_helpers.js";
+import { parseJWTPayload, validateTenantKey } from "./tenant_helpers.js";
 
 const INPUTS_CONF = "inputs";
 
@@ -116,13 +112,6 @@ export async function addTenant(splunk_js_sdk, authToken, tenantKey, tenantId) {
   const parsed = parseJWTPayload(authToken);
   if (parsed.error) {
     throw new Error(parsed.error);
-  }
-  const introspectError = await introspectEventsToken(
-    authToken,
-    parsed.payload.aud[0]
-  );
-  if (introspectError) {
-    throw new Error(introspectError);
   }
 
   const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
@@ -241,13 +230,6 @@ export async function perform(
   const parsed = parseJWTPayload(authToken);
   if (parsed.error) {
     throw new Error(parsed.error);
-  }
-  const introspectError = await introspectEventsToken(
-    authToken,
-    parsed.payload.aud[0]
-  );
-  if (introspectError) {
-    throw new Error(introspectError);
   }
 
   // Create the Splunk JS SDK Service object

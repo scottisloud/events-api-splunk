@@ -148,6 +148,7 @@ Same as the [official “Update a bearer token in Splunk”](https://support.1pa
 
 - Tokens are stored in Splunk **storage/passwords** (encrypted by Splunk). Each tenant has its own password stanza; updating one tenant does not delete others.
 - **Setup** and **Manage Tenants** views require the Splunk `admin` role. Direct edits to `events_reporting.conf` stanzas also require `admin`.
+- The setup UI validates token structure (JWT format and audience). **Full token verification** (introspect against the 1Password Events API) runs server-side when scripted inputs start polling for each tenant. Check `splunkd.log` for `token introspect failed` if a stored token is invalid.
 - Any Splunk role that can search the shared indexes can see events from **all** connected tenants. Dashboard `tenant_id` filters are not access controls.
 - Use `tenant_id` labels for searches only. File paths and secrets use the internal `tenant_key`, not the display label.
 - See [About 1Password Events Reporting security](https://support.1password.com/events-reporting-security/) for general Events API security practices.
