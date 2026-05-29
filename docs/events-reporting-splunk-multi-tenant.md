@@ -74,9 +74,9 @@ After the first tenant is configured:
 2. Go to [Integrations](https://start.1password.com/integrations/active) and open or create an **Events Reporting** integration for Splunk.
 3. Issue a new bearer token with the required event types. Copy the token.
 4. In Splunk **Manage Tenants**, paste the token into **Events API Token**.
-5. Optionally enter a **tenant_id label** (for example `acme-corp` or `eu-security`).  
+5. Enter a **tenant_id label** (for example `acme-corp` or `eu-security`). This value is required and is stamped on every ingested event for Splunk filtering.  
    - Use letters, numbers, underscores, and hyphens only (max 64 characters).  
-   - If you leave this blank, the add-on uses a slug derived from the token’s API host.
+   - Choose a name that is meaningful in your environment. It is not derived from the token’s API hostname (that hostname is stored separately as the internal `tenant_key`).
 6. Select **Add tenant**.
 
 Splunk stores:
@@ -87,7 +87,7 @@ Splunk stores:
 | Token | Storage password `events_api_token_<tenant_key>` in realm `events_reporting_realm` |
 | Cursors | `local/signin_cursor_store_<tenant_key>`, etc. |
 
-The internal `tenant_key` is computed from the JWT audience and must be unique. You cannot add two tokens for the same 1Password Events API endpoint under different labels.
+The internal `tenant_key` is computed from the JWT audience and must be unique. You cannot add two tokens for the same 1Password Events API endpoint under different labels. The **tenant_id** label you enter is independent of `tenant_key` and should identify the account or team in your Splunk searches.
 
 ### Remove a tenant
 

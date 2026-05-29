@@ -3,7 +3,7 @@ import * as Setup from "./setup_page.js";
 import {
   parseJWTPayload,
   validateJWT,
-  validateTenantId,
+  validateTenantIdRequired,
   validateTenantKey,
   tenantKeyFromAudience,
   secretNameForTenantKey,
@@ -59,11 +59,8 @@ export default class TenantManagementPage extends React.Component {
       return;
     }
 
-    let tenantId = this.state.tenantId.trim();
-    if (!tenantId) {
-      tenantId = tenantKey;
-    }
-    const idError = validateTenantId(tenantId);
+    const tenantId = this.state.tenantId.trim();
+    const idError = validateTenantIdRequired(tenantId);
     if (idError) {
       this.setState({ result: { success: false, error: idError } });
       return;
@@ -193,7 +190,7 @@ export default class TenantManagementPage extends React.Component {
           e("div", { className: "token block" }, [
             e("input", {
               type: "text",
-              placeholder: "tenant_id label (optional, e.g. acme-corp)",
+              placeholder: "tenant_id label (required, e.g. acme-corp)",
               value: tenantId,
               onChange: (ev) =>
                 this.setState({ tenantId: ev.target.value }),

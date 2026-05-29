@@ -66,6 +66,13 @@ export function validateTenantId(tenantId) {
   }
 }
 
+export function validateTenantIdRequired(tenantId) {
+  if (!tenantId.trim()) {
+    return "Enter a tenant_id label (for example acme-corp). This is used in Splunk searches and is not derived from the API hostname.";
+  }
+  return validateTenantId(tenantId.trim());
+}
+
 export function validateTenantKey(tenantKey) {
   if (tenantKey === "default") {
     return;
