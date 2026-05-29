@@ -32,10 +32,14 @@ build_all_binaries: ensure-gox
 build: build_all_apps
 
 build_all_apps: clean build_all_binaries
+	@test -f app/onepassword_events_api/appserver/static/build/main.js || (echo "ERROR: appserver/static/build/main.js is missing after webpack build" && exit 1)
 	@cp -R src app/onepassword_events_api/lib/item_usages
 	@cp -R src app/onepassword_events_api/lib/signin_attempts
 	@cp -R src app/onepassword_events_api/lib/audit_events
 	@cd builds/bin && for d in */; do cp -a ../../app/onepassword_events_api $${d}; done
+	@cd builds/bin && for d in */; do \
+		test -f $${d}onepassword_events_api/appserver/static/build/main.js || (echo "ERROR: main.js missing in $${d}onepassword_events_api before packaging" && exit 1); \
+	done
 	@sed -i'.bak' 's#bin/signin_attempts#bin/signin_attempts.exe#g' builds/bin/windows_amd64/onepassword_events_api/default/inputs.conf
 	@sed -i'.bak' 's#bin/item_usages#bin/item_usages.exe#g' builds/bin/windows_amd64/onepassword_events_api/default/inputs.conf
 	@sed -i'.bak' 's#bin/audit_events#bin/audit_events.exe#g' builds/bin/windows_amd64/onepassword_events_api/default/inputs.conf

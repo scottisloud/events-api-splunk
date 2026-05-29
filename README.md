@@ -36,3 +36,28 @@ If you do not have `go` locally installed, you can find installation steps [here
 
 - `make build_all_apps` (or `make build`) compiles binaries for all platforms, bundles the Splunk app, and writes tarballs under `builds/bin`. This runs `build_all_binaries` automatically; you do not need to invoke it separately first.
 - `make build_all_binaries` only cross-compiles Go binaries and runs the setup UI webpack build (creates `builds/bin`). Installs [gox](https://github.com/mitchellh/gox) to `$(go env GOPATH)/bin` if it is missing.
+
+### Installing after `make build`
+
+Use the **platform tarball**, not the `app/` folder alone:
+
+```text
+builds/bin/linux_amd64/onepassword_events_api_1.14.1.tar.gz
+```
+
+In Splunk Web: **Manage Apps → Install app from file** (upgrade/reinstall with this tarball).
+
+After install, verify on the Splunk server:
+
+```bash
+ls -l $SPLUNK_HOME/etc/apps/onepassword_events_api/appserver/static/build/main.js
+```
+
+That file must exist and be ~140KB (production build). Then **reload the app** and hard-refresh the browser (Ctrl+Shift+R).
+
+For local/docker dev without tarballs:
+
+```bash
+make compile_app_binary
+cd app/onepassword_events_api && npm run build-release
+```
