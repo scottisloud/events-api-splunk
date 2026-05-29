@@ -36,6 +36,34 @@ func NewEventsAPI(authToken string, url string) *EventsAPI {
 	return client
 }
 
+// postEvents performs a POST to an Events API endpoint and decodes the JSON
+// response into *T. The three event endpoints (sign-in attempts, item usages,
+// audit events) share identical request/decode handling and differ only in the
+// route and response type, so they all funnel through here.
+func postEvents[T any](e *EventsAPI, ctx context.Context, route string, body interface{}) (*T, error) {
+	res, err := e.request(ctx, "POST", route, body)
+	if err != nil {
+		return nil, fmt.Errorf("could not make EventAPIRequest: %w", err)
+	}
+	defer res.Body.Close()
+
+	resBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("could not read response: %w", err)
+	}
+
+	out := new(T)
+	if err := json.Unmarshal(resBody, out); err != nil {
+		return nil, fmt.Errorf("could not unmarshal response: %s", string(resBody))
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received a non 200 response: %v", string(resBody))
+	}
+
+	return out, nil
+}
+
 func (e *EventsAPI) request(ctx context.Context, method string, route string, body interface{}) (*http.Response, error) {
 	var b io.Reader
 	if body != nil {

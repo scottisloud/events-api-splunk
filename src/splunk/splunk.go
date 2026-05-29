@@ -47,8 +47,9 @@ func (e *SplunkAPI) request(ctx context.Context, method string, route string, da
 	var b io.Reader
 	contentLength := 0
 	if data != nil {
-		b = strings.NewReader(data.Encode())
-		contentLength = len(data.Encode())
+		encoded := data.Encode()
+		b = strings.NewReader(encoded)
+		contentLength = len(encoded)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, e.BaseUrl+route, b)
 	if err != nil {

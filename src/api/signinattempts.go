@@ -2,10 +2,7 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 )
 
 type SignInAttempt struct {
@@ -52,10 +49,17 @@ type CursorResponse struct {
 	HasMore bool   `json:"has_more"`
 }
 
+// GetCursor and GetHasMore expose the embedded cursor fields through the
+// eventBatch interface used by the shared poller in the actions package.
+func (c *CursorResponse) GetCursor() string { return c.Cursor }
+func (c *CursorResponse) GetHasMore() bool  { return c.HasMore }
+
 type SignInAttemptResponse struct {
 	*CursorResponse
 	Items []SignInAttempt `json:"items"`
 }
+
+func (s *SignInAttemptResponse) EventCount() int { return len(s.Items) }
 
 func (s *SignInAttemptResponse) PrintEvents(tenantID string) error {
 	for i, v := range s.Items {
@@ -67,29 +71,5 @@ func (s *SignInAttemptResponse) PrintEvents(tenantID string) error {
 }
 
 func (e *EventsAPI) SignInAttemptsRequest(ctx context.Context, body interface{}) (*SignInAttemptResponse, error) {
-	res, err := e.request(ctx, "POST", "/api/v1/signinattempts", body)
-	if err != nil {
-		err := fmt.Errorf("could not make EventAPIRequest: %w", err)
-		return nil, err
-	}
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		err := fmt.Errorf("could not read response: %w", err)
-		return nil, err
-	}
-	res.Body.Close()
-
-	attemptsRes := &SignInAttemptResponse{}
-	err = json.Unmarshal(resBody, attemptsRes)
-	if err != nil {
-		err := fmt.Errorf("could not unmarshal response: %s", string(resBody))
-		return nil, err
-	}
-
-	if res.StatusCode != http.StatusOK {
-		err := fmt.Errorf("received a non 200 response: %v", string(resBody))
-		return nil, err
-	}
-
-	return attemptsRes, nil
+	return postEvents[SignInAttemptResponse](e, ctx, "/api/v1/signinattempts", body)
 }

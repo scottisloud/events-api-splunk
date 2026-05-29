@@ -68,8 +68,8 @@ type rawConfigFile struct {
 }
 
 const (
-	defaultSignInCursor     = `"/etc/apps/onepassword_events_api/local/signin_cursor_store"`
-	defaultItemUsageCursor  = `"/etc/apps/onepassword_events_api/local/itemusage_cursor_store"`
+	defaultSignInCursor      = `"/etc/apps/onepassword_events_api/local/signin_cursor_store"`
+	defaultItemUsageCursor   = `"/etc/apps/onepassword_events_api/local/itemusage_cursor_store"`
 	defaultAuditEventsCursor = `"/etc/apps/onepassword_events_api/local/auditevents_cursor_store"`
 )
 
@@ -142,15 +142,7 @@ func (e *SplunkEnv) LoadTenants() ([]TenantRuntime, error) {
 	}
 
 	if _, hasDefault := e.Tenants[utils.DefaultTenantKey]; !hasDefault && e.hasLegacyConfig() {
-		rt, err := e.buildTenantRuntime(utils.DefaultTenantKey, TenantConfig{
-			TenantID:              e.Config.TenantID,
-			Limit:                 e.Config.Limit,
-			StartAt:               e.Config.StartAt,
-			Url:                   e.Config.Url,
-			SignInCursorFile:      e.Config.SignInCursorFile,
-			ItemUsageCursorFile:   e.Config.ItemUsageCursorFile,
-			AuditEventsCursorFile: e.Config.AuditEventsCursorFile,
-		}, true)
+		rt, err := e.buildTenantRuntime(utils.DefaultTenantKey, e.legacyTenantConfig(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -161,15 +153,7 @@ func (e *SplunkEnv) LoadTenants() ([]TenantRuntime, error) {
 		if !e.hasLegacyConfig() {
 			return nil, fmt.Errorf("no tenants in configuration")
 		}
-		rt, err := e.buildTenantRuntime(utils.DefaultTenantKey, TenantConfig{
-			TenantID:              e.Config.TenantID,
-			Limit:                 e.Config.Limit,
-			StartAt:               e.Config.StartAt,
-			Url:                   e.Config.Url,
-			SignInCursorFile:      e.Config.SignInCursorFile,
-			ItemUsageCursorFile:   e.Config.ItemUsageCursorFile,
-			AuditEventsCursorFile: e.Config.AuditEventsCursorFile,
-		}, true)
+		rt, err := e.buildTenantRuntime(utils.DefaultTenantKey, e.legacyTenantConfig(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -184,6 +168,20 @@ func (e *SplunkEnv) hasLegacyConfig() bool {
 		!e.Config.StartAt.IsZero() ||
 		e.Config.SignInCursorFile != "" ||
 		e.Config.AuthToken != ""
+}
+
+// legacyTenantConfig adapts the legacy top-level [config] stanza into the
+// per-tenant shape used for the implicit "default" tenant.
+func (e *SplunkEnv) legacyTenantConfig() TenantConfig {
+	return TenantConfig{
+		TenantID:              e.Config.TenantID,
+		Limit:                 e.Config.Limit,
+		StartAt:               e.Config.StartAt,
+		Url:                   e.Config.Url,
+		SignInCursorFile:      e.Config.SignInCursorFile,
+		ItemUsageCursorFile:   e.Config.ItemUsageCursorFile,
+		AuditEventsCursorFile: e.Config.AuditEventsCursorFile,
+	}
 }
 
 func (e *SplunkEnv) buildTenantRuntime(tenantKey string, tc TenantConfig, legacy bool) (TenantRuntime, error) {
