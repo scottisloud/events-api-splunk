@@ -11,9 +11,11 @@ import (
 // Splunk writes events_reporting.conf without quoting some string values.
 // BurntSushi TOML requires quotes for values like tenantId = mspc.
 var unquotedTenantID = regexp.MustCompile(`(?m)^(\s*tenantId\s*=\s*)([a-zA-Z0-9][a-zA-Z0-9_-]*)\s*$`)
+var unquotedPendingKeys = regexp.MustCompile(`(?m)^(\s*pendingKeys\s*=\s*)([a-zA-Z0-9][a-zA-Z0-9_,-]*)\s*$`)
 
 func normalizeEventsReportingConf(data []byte) []byte {
-	return unquotedTenantID.ReplaceAll(data, []byte(`${1}"${2}"`))
+	data = unquotedTenantID.ReplaceAll(data, []byte(`${1}"${2}"`))
+	return unquotedPendingKeys.ReplaceAll(data, []byte(`${1}"${2}"`))
 }
 
 func decodeEventsReportingConf(data []byte) (rawConfigFile, error) {

@@ -50,8 +50,18 @@ func TenantKeyFromAudience(audience string) (string, error) {
 	return slug, nil
 }
 
+// NormalizeTenantID strips optional surrounding quotes from config values.
+func NormalizeTenantID(value string) string {
+	normalized := strings.TrimSpace(value)
+	if len(normalized) >= 2 && strings.HasPrefix(normalized, `"`) && strings.HasSuffix(normalized, `"`) {
+		return normalized[1 : len(normalized)-1]
+	}
+	return normalized
+}
+
 // ValidateTenantID checks the admin-facing tenant label used in Splunk events.
 func ValidateTenantID(tenantID string) error {
+	tenantID = NormalizeTenantID(tenantID)
 	if !tenantIDPattern.MatchString(tenantID) {
 		return fmt.Errorf("tenant_id must match %s", tenantIDPattern.String())
 	}
@@ -92,21 +102,18 @@ func ValidateSecretNameForTenant(secretName, tenantKey string) error {
 	return nil
 }
 
-// ValidateTokenTenantKey checks that a JWT audience maps to the configured tenant key.
-// The legacy default tenant uses a fixed key and is exempt from audience binding.
-func ValidateTokenTenantKey(claims *JWTClaims, tenantKey string) error {
-	if tenantKey == DefaultTenantKey {
-		return nil
-	}
+// ValidateTokenAudience ensures the JWT has a usable Events API audience.
+// Multiple tenants may share the same endpoint host; tenant_key is the admin label.
+func ValidateTokenAudience(claims *JWTClaims) error {
 	if len(claims.Audience) == 0 {
-		return fmt.Errorf("token missing audience for tenant_key %q", tenantKey)
+		return fmt.Errorf("token missing audience")
 	}
-	derivedKey, err := TenantKeyFromAudience(claims.Audience[0])
+	if claims.Audience[0] == AudienceDEPRECATED {
+		return fmt.Errorf("deprecated audience")
+	}
+	_, err := TenantKeyFromAudience(claims.Audience[0])
 	if err != nil {
-		return fmt.Errorf("invalid token audience for tenant_key %q: %w", tenantKey, err)
-	}
-	if derivedKey != tenantKey {
-		return fmt.Errorf("token audience does not match tenant_key %q (aud maps to %q)", tenantKey, derivedKey)
+		return fmt.Errorf("invalid token audience: %w", err)
 	}
 	return nil
 }

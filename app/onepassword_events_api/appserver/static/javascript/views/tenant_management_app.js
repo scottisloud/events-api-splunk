@@ -1,11 +1,8 @@
 import React from "react";
 import * as Setup from "./setup_page.js";
 import {
-  parseJWTPayload,
   validateJWT,
   validateTenantIdRequired,
-  validateTenantKey,
-  tenantKeyFromAudience,
   secretNameForTenantKey,
 } from "./tenant_helpers.js";
 
@@ -50,15 +47,6 @@ export default class TenantManagementPage extends React.Component {
       return;
     }
 
-    const parsed = parseJWTPayload(this.state.authToken);
-    const audience = parsed.payload.aud[0];
-    const tenantKey = await tenantKeyFromAudience(audience);
-    const keyError = validateTenantKey(tenantKey);
-    if (keyError) {
-      this.setState({ result: { success: false, error: keyError } });
-      return;
-    }
-
     const tenantId = this.state.tenantId.trim();
     const idError = validateTenantIdRequired(tenantId);
     if (idError) {
@@ -66,12 +54,14 @@ export default class TenantManagementPage extends React.Component {
       return;
     }
 
-    const existing = this.state.tenants.find((t) => t.tenantKey === tenantKey);
+    const existing = this.state.tenants.find(
+      (t) => t.tenantKey === tenantId || t.tenantId === tenantId
+    );
     if (existing) {
       this.setState({
         result: {
           success: false,
-          error: `A tenant is already configured for this 1Password endpoint (key: ${tenantKey}).`,
+          error: `A tenant with label "${tenantId}" is already configured.`,
         },
       });
       return;
@@ -79,12 +69,7 @@ export default class TenantManagementPage extends React.Component {
 
     this.setState({ loading: true, result: { success: false, error: "" } });
     try {
-      await Setup.addTenant(
-        splunkjs,
-        this.state.authToken,
-        tenantKey,
-        tenantId
-      );
+      await Setup.addTenant(splunkjs, this.state.authToken, tenantId, tenantId);
       await this.refreshTenants();
       this.setState({
         authToken: "",

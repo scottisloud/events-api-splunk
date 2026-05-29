@@ -43,8 +43,20 @@ func TestValidateTenantID(t *testing.T) {
 	if err := ValidateTenantID("acme-corp"); err != nil {
 		t.Fatal(err)
 	}
+	if err := ValidateTenantID(`"acme-corp"`); err != nil {
+		t.Fatal("quoted tenant_id should normalize")
+	}
 	if err := ValidateTenantID("../bad"); err == nil {
 		t.Fatal("expected error for path-like tenant_id")
+	}
+}
+
+func TestNormalizeTenantID(t *testing.T) {
+	if got := NormalizeTenantID(`"mspc"`); got != "mspc" {
+		t.Fatalf("got %q", got)
+	}
+	if got := NormalizeTenantID("mspc"); got != "mspc" {
+		t.Fatalf("got %q", got)
 	}
 }
 
@@ -68,15 +80,15 @@ func TestValidateSecretNameForTenant(t *testing.T) {
 	}
 }
 
-func TestValidateTokenTenantKey(t *testing.T) {
+func TestValidateTokenAudience(t *testing.T) {
 	claims := &JWTClaims{Audience: []string{"events.1password.com"}}
-	if err := ValidateTokenTenantKey(claims, "events_1password_com"); err != nil {
+	if err := ValidateTokenAudience(claims); err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateTokenTenantKey(claims, DefaultTenantKey); err != nil {
-		t.Fatal("default tenant should skip audience binding")
+	if err := ValidateTokenAudience(&JWTClaims{Audience: []string{}}); err == nil {
+		t.Fatal("expected missing audience error")
 	}
-	if err := ValidateTokenTenantKey(claims, "wrong_key"); err == nil {
-		t.Fatal("expected audience mismatch error")
+	if err := ValidateTokenAudience(&JWTClaims{Audience: []string{AudienceDEPRECATED}}); err == nil {
+		t.Fatal("expected deprecated audience error")
 	}
 }

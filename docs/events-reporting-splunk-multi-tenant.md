@@ -14,7 +14,7 @@ If you are using the unmodified Splunkbase add-on, follow the official guide onl
 | Setup UI | Single setup wizard | Initial wizard + **Manage Tenants** |
 | Credentials | One storage password | One storage password **per tenant** |
 
-Each 1Password tenant is a separate 1Password Business account (or separate Events API integration) with its own bearer token. The JWT `aud` claim identifies the Events API host for that tenant; the add-on derives an internal `tenant_key` from it automatically.
+Each 1Password tenant is a separate 1Password Business account (or separate Events API integration) with its own bearer token. Most tenants use the same Events API host (`events.1password.com`); regional accounts may use a different host in the JWT `aud` claim. The **tenant_id** label you choose identifies each account in Splunk; it also becomes the internal config key for that tenant’s stanza, token, and cursor files.
 
 ## Before you begin
 
@@ -74,20 +74,22 @@ After the first tenant is configured:
 2. Go to [Integrations](https://start.1password.com/integrations/active) and open or create an **Events Reporting** integration for Splunk.
 3. Issue a new bearer token with the required event types. Copy the token.
 4. In Splunk **Manage Tenants**, paste the token into **Events API Token**.
-5. Enter a **tenant_id label** (for example `acme-corp` or `eu-security`). This value is required and is stamped on every ingested event for Splunk filtering.  
+5. Enter a **tenant_id label** (for example `acme-corp` or `eu-security`). This value is required, must be unique across tenants, and is stamped on every ingested event for Splunk filtering.  
    - Use letters, numbers, underscores, and hyphens only (max 64 characters).  
-   - Choose a name that is meaningful in your environment. It is not derived from the token’s API hostname (that hostname is stored separately as the internal `tenant_key`).
+   - Choose a name that is meaningful in your environment (customer name, team, region, etc.).
 6. Select **Add tenant**.
+
+Adding or removing a tenant automatically restarts the enabled 1Password scripted inputs so ingestion picks up the updated tenant list. If events from a new tenant do not appear within a few minutes, check `$SPLUNK_HOME/var/log/splunk/splunkd.log` for lines containing `skipping tenant` or `failed:` for that tenant.
 
 Splunk stores:
 
 | Item | Location |
 | --- | --- |
-| Tenant settings | `[tenant.<tenant_key>]` in `local/events_reporting.conf` |
-| Token | Storage password `events_api_token_<tenant_key>` in realm `events_reporting_realm` |
-| Cursors | `local/signin_cursor_store_<tenant_key>`, etc. |
+| Tenant settings | `[tenant.<tenant_id>]` in `local/events_reporting.conf` |
+| Token | Storage password `events_api_token_<tenant_id>` in realm `events_reporting_realm` |
+| Cursors | `local/signin_cursor_store_<tenant_id>`, etc. |
 
-The internal `tenant_key` is computed from the JWT audience and must be unique. You cannot add two tokens for the same 1Password Events API endpoint under different labels. The **tenant_id** label you enter is independent of `tenant_key` and should identify the account or team in your Splunk searches.
+Multiple tenants may use tokens with the same Events API endpoint (same JWT `aud` host). Each tenant still needs a **unique tenant_id label** and its own bearer token. Deployments created before this change may still use an audience-derived stanza name (for example `[tenant.events_1password_com]` with a different display label); those continue to work without reconfiguration.
 
 ### Remove a tenant
 
@@ -150,7 +152,7 @@ Same as the [official “Update a bearer token in Splunk”](https://support.1pa
 - **Setup** and **Manage Tenants** views require the Splunk `admin` role. Direct edits to `events_reporting.conf` stanzas also require `admin`.
 - The setup UI validates token structure (JWT format and audience). **Full token verification** (introspect against the 1Password Events API) runs server-side when scripted inputs start polling for each tenant. Check `splunkd.log` for `token introspect failed` if a stored token is invalid.
 - Any Splunk role that can search the shared indexes can see events from **all** connected tenants. Dashboard `tenant_id` filters are not access controls.
-- Use `tenant_id` labels for searches only. File paths and secrets use the internal `tenant_key`, not the display label.
+- For new tenants, the **tenant_id** label is also the internal config key (stanza name, secret suffix, cursor file suffix). Older deployments may use a legacy audience-derived stanza name with a separate display label.
 - See [About 1Password Events Reporting security](https://support.1password.com/events-reporting-security/) for general Events API security practices.
 
 ### Restricting access by tenant (recommended at scale)
@@ -217,7 +219,7 @@ itemUsageCursorFile = "/etc/apps/onepassword_events_api/local/itemusage_cursor_s
 auditEventsCursorFile = "/etc/apps/onepassword_events_api/local/auditevents_cursor_store"
 ```
 
-**Additional tenant** (`[tenant.<tenant_key>]`):
+**Additional tenant** (`[tenant.<tenant_id>]`):
 
 ```toml
 [tenant.acme_corp]
@@ -232,7 +234,7 @@ startAt = 2020-01-01T00:00:00Z
 | Tenant | Name |
 | --- | --- |
 | Default (initial setup) | `events_api_token` |
-| Additional | `events_api_token_<tenant_key>` |
+| Additional | `events_api_token_<tenant_id>` |
 
 Realm for all: `events_reporting_realm`.
 

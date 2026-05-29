@@ -51,6 +51,81 @@ export async function getIndexes(splunk_js_sdk) {
   return indexes;
 }
 
+const SCRIPTED_INPUTS = [
+  SIGNIN_INPUT,
+  ITEMUSAAGE_INPUT,
+  AUDITEVENTS_INPUT,
+];
+
+function isInputEnabled(disabled) {
+  return (
+    disabled === 0 ||
+    disabled === "0" ||
+    disabled === false ||
+    disabled === "false"
+  );
+}
+
+async function readInputProperties(splunk_js_sdk_service, input) {
+  const conf = await Splunk.get_configuration_file_accessor(
+    splunk_js_sdk_service,
+    INPUTS_CONF
+  );
+  if (!conf || !doesStanzaExist(conf, input)) {
+    return null;
+  }
+  const stanza = conf.item(input);
+  await promisify(stanza.fetch)();
+  return stanza.properties();
+}
+
+// Scripted inputs load the tenant list once at startup. Bounce enabled inputs so
+// newly added or removed tenants are picked up without a full Splunk restart.
+export async function restartScriptedInputs(splunk_js_sdk) {
+  const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
+    splunk_js_sdk,
+    onepassword_name_space
+  );
+
+  const enabledInputs = [];
+  const savedProps = {};
+
+  for (const input of SCRIPTED_INPUTS) {
+    const props = await readInputProperties(splunk_js_sdk_service, input);
+    if (!props || !isInputEnabled(props.disabled)) {
+      continue;
+    }
+    enabledInputs.push(input);
+    savedProps[input] = props;
+  }
+
+  if (enabledInputs.length === 0) {
+    return;
+  }
+
+  for (const input of enabledInputs) {
+    await updateInputs(splunk_js_sdk_service, input, { disabled: 1 }, false);
+  }
+  await Config.reload_splunk_app(
+    splunk_js_sdk_service,
+    onepassword_name_space.app
+  );
+
+  for (let i = 0; i < enabledInputs.length; i++) {
+    const input = enabledInputs[i];
+    const props = savedProps[input];
+    await updateInputs(
+      splunk_js_sdk_service,
+      input,
+      {
+        index: props.index,
+        disabled: 0,
+      },
+      i === enabledInputs.length - 1
+    );
+  }
+}
+
 export async function updateInputs(
   splunk_js_sdk_service,
   input,
@@ -151,10 +226,7 @@ export async function addTenant(splunk_js_sdk, authToken, tenantKey, tenantId) {
     authToken
   );
 
-  await Config.reload_splunk_app(
-    splunk_js_sdk_service,
-    onepassword_name_space.app
-  );
+  await restartScriptedInputs(splunk_js_sdk);
 }
 
 export async function removeTenant(splunk_js_sdk, tenantKey) {
@@ -186,10 +258,7 @@ export async function removeTenant(splunk_js_sdk, tenantKey) {
     `${SECRET_NAME}_${tenantKey}`
   );
 
-  await Config.reload_splunk_app(
-    splunk_js_sdk_service,
-    onepassword_name_space.app
-  );
+  await restartScriptedInputs(splunk_js_sdk);
 }
 
 async function queueCursorCleanup(splunk_js_sdk_service, tenantKey) {
@@ -216,7 +285,7 @@ async function queueCursorCleanup(splunk_js_sdk_service, tenantKey) {
     splunk_js_sdk_service,
     CUSTOM_CONF,
     "cleanup",
-    { pendingKeys: keys.join(",") }
+    { pendingKeys: keys.length ? `"${keys.join(",")}"` : '""' }
   );
 }
 

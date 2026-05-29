@@ -97,8 +97,8 @@ func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, ten
 	if err != nil {
 		return fmt.Errorf("could not parse jwt: %w", err)
 	}
-	if err := utils.ValidateTokenTenantKey(jwt, tenant.TenantKey); err != nil {
-		return err
+	if err := utils.ValidateTokenAudience(jwt); err != nil {
+		return fmt.Errorf("tenant %q: %w", tenant.TenantID, err)
 	}
 
 	url := cfg.Url

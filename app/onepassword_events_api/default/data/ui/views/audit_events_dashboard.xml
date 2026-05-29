@@ -12,9 +12,7 @@
       <label>Tenant</label>
       <choice value="*">All tenants</choice>
       <search>
-        <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" | stats count by tenant_id | sort tenant_id</query>
-        <earliest>-90d@d</earliest>
-        <latest>now</latest>
+        <query>`onepassword_configured_tenant_ids`</query>
       </search>
       <fieldForLabel>tenant_id</fieldForLabel>
       <fieldForValue>tenant_id</fieldForValue>

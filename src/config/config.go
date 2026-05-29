@@ -122,7 +122,8 @@ func (e *SplunkEnv) LoadTenants() ([]TenantRuntime, error) {
 		for _, tenantKey := range tenantKeys {
 			tc := e.Tenants[tenantKey]
 			if err := utils.ValidateTenantKey(tenantKey); err != nil {
-				return nil, fmt.Errorf("invalid tenant_key %q: %w", tenantKey, err)
+				log.Printf("skipping tenant %q: %v", tenantKey, err)
+				continue
 			}
 			enabled := true
 			if tc.Enabled != nil {
@@ -133,7 +134,8 @@ func (e *SplunkEnv) LoadTenants() ([]TenantRuntime, error) {
 			}
 			rt, err := e.buildTenantRuntime(tenantKey, tc, false)
 			if err != nil {
-				return nil, err
+				log.Printf("skipping tenant %q: %v", tenantKey, err)
+				continue
 			}
 			runtimes = append(runtimes, rt)
 		}
@@ -185,7 +187,7 @@ func (e *SplunkEnv) hasLegacyConfig() bool {
 }
 
 func (e *SplunkEnv) buildTenantRuntime(tenantKey string, tc TenantConfig, legacy bool) (TenantRuntime, error) {
-	tenantID := tc.TenantID
+	tenantID := utils.NormalizeTenantID(tc.TenantID)
 	if tenantID == "" {
 		tenantID = utils.DefaultTenantID
 	}

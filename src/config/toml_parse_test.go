@@ -24,6 +24,27 @@ enabled = true
 	}
 }
 
+func TestNormalizeUnquotedPendingKeys(t *testing.T) {
+	conf := `
+[cleanup]
+pendingKeys = events_b5test_com
+
+[tenant.onepine]
+tenantId = "onepine"
+enabled = true
+`
+	raw, err := decodeEventsReportingConf([]byte(conf))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw.Cleanup.PendingKeys != "events_b5test_com" {
+		t.Fatalf("got pendingKeys %q", raw.Cleanup.PendingKeys)
+	}
+	if raw.Tenants["onepine"].TenantID != "onepine" {
+		t.Fatalf("got tenantId %q", raw.Tenants["onepine"].TenantID)
+	}
+}
+
 func TestTenantIdMustBeQuotedInToml(t *testing.T) {
 	type TC struct {
 		TenantID string `toml:"tenantId"`

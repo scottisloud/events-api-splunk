@@ -83,7 +83,7 @@ export function validateTenantId(tenantId) {
 
 export function validateTenantIdRequired(tenantId) {
   if (!tenantId.trim()) {
-    return "Enter a tenant_id label (for example acme-corp). This is used in Splunk searches and is not derived from the API hostname.";
+    return "Enter a tenant_id label (for example acme-corp). It must be unique and is used in Splunk searches, config stanzas, and storage passwords.";
   }
   return validateTenantId(tenantId.trim());
 }
