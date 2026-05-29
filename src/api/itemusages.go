@@ -2,10 +2,7 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 )
 
 type ItemUsage struct {
@@ -49,6 +46,8 @@ type ItemUsageResponse struct {
 	Items []ItemUsage `json:"items"`
 }
 
+func (s *ItemUsageResponse) EventCount() int { return len(s.Items) }
+
 func (s *ItemUsageResponse) PrintEvents(tenantID string) error {
 	for i, v := range s.Items {
 		if err := PrintJSONEvent(v, tenantID); err != nil {
@@ -59,29 +58,5 @@ func (s *ItemUsageResponse) PrintEvents(tenantID string) error {
 }
 
 func (e *EventsAPI) ItemUsagesRequest(ctx context.Context, body interface{}) (*ItemUsageResponse, error) {
-	res, err := e.request(ctx, "POST", "/api/v1/itemusages", body)
-	if err != nil {
-		err := fmt.Errorf("could not make EventAPIRequest: %w", err)
-		return nil, err
-	}
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		err := fmt.Errorf("could not read response: %w", err)
-		return nil, err
-	}
-	res.Body.Close()
-
-	itemUsagesRes := &ItemUsageResponse{}
-	err = json.Unmarshal(resBody, itemUsagesRes)
-	if err != nil {
-		err := fmt.Errorf("could not unmarshal response: %s", string(resBody))
-		return nil, err
-	}
-
-	if res.StatusCode != http.StatusOK {
-		err := fmt.Errorf("received a non 200 response: %v", string(resBody))
-		return nil, err
-	}
-
-	return itemUsagesRes, nil
+	return postEvents[ItemUsageResponse](e, ctx, "/api/v1/itemusages", body)
 }

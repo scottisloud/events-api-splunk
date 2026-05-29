@@ -1,8 +1,6 @@
 package config
 
 import (
-	"bytes"
-	"os"
 	"regexp"
 
 	"github.com/BurntSushi/toml"
@@ -23,13 +21,4 @@ func decodeEventsReportingConf(data []byte) (rawConfigFile, error) {
 	normalized := normalizeEventsReportingConf(data)
 	_, err := toml.Decode(string(normalized), &raw)
 	return raw, err
-}
-
-func readAndDecodeConfig(path string) (rawConfigFile, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return rawConfigFile{}, err
-	}
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
-	return decodeEventsReportingConf(data)
 }

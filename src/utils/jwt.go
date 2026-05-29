@@ -43,8 +43,11 @@ func ParseJWTClaims(token string) (*JWTClaims, error) {
 }
 
 func (t *JWTClaims) GetEventsURL() (string, error) {
+	if len(t.Audience) == 0 {
+		return "", errors.New("token has no audience")
+	}
 	if t.Audience[0] == AudienceDEPRECATED {
-		return "", errors.New("Token does not have a url.")
+		return "", errors.New("token does not have a url")
 	}
 
 	return fmt.Sprintf("https://%s", t.Audience[0]), nil

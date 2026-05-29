@@ -117,12 +117,3 @@ func ValidateTokenAudience(claims *JWTClaims) error {
 	}
 	return nil
 }
-
-// TenantIDFromAudience creates a default human-readable tenant_id from aud when none is provided.
-func TenantIDFromAudience(audience string) (string, error) {
-	id, err := TenantKeyFromAudience(audience)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
-}

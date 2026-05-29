@@ -2,10 +2,7 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"time"
 )
 
@@ -53,6 +50,8 @@ type AuditEventsResponse struct {
 	AuditEvents []AuditEvent `json:"items"`
 }
 
+func (s *AuditEventsResponse) EventCount() int { return len(s.AuditEvents) }
+
 func (s *AuditEventsResponse) PrintEvents(tenantID string) error {
 	for i, v := range s.AuditEvents {
 		if err := PrintJSONEvent(v, tenantID); err != nil {
@@ -63,29 +62,5 @@ func (s *AuditEventsResponse) PrintEvents(tenantID string) error {
 }
 
 func (e *EventsAPI) AuditEventsRequest(ctx context.Context, body interface{}) (*AuditEventsResponse, error) {
-	res, err := e.request(ctx, "POST", "/api/v1/auditevents", body)
-	if err != nil {
-		err := fmt.Errorf("could not make EventAPIRequest: %w", err)
-		return nil, err
-	}
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		err := fmt.Errorf("could not read response: %w", err)
-		return nil, err
-	}
-	res.Body.Close()
-
-	auditEventsRes := &AuditEventsResponse{}
-	err = json.Unmarshal(resBody, auditEventsRes)
-	if err != nil {
-		err := fmt.Errorf("could not unmarshal response: %s", string(resBody))
-		return nil, err
-	}
-
-	if res.StatusCode != http.StatusOK {
-		err := fmt.Errorf("received a non 200 response: %v", string(resBody))
-		return nil, err
-	}
-
-	return auditEventsRes, nil
+	return postEvents[AuditEventsResponse](e, ctx, "/api/v1/auditevents", body)
 }
