@@ -34,7 +34,7 @@
       <map>
         <title>Item Usages Map</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | iplocation client.ip_address | lookup geo_countries longitude as lon, latitude as lat | stats count by Country | geom geo_countries featureIdField=Country</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | iplocation client.ip_address | lookup geo_countries longitude as lon, latitude as lat | stats count by Country | geom geo_countries featureIdField=Country</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -54,7 +54,7 @@
       <chart>
         <title>Item Usages by App Name</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | timechart count by client.app_name</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | timechart count by client.app_name</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -67,7 +67,7 @@
       <chart>
         <title>Item Usages by Actions</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | timechart  count by action</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | timechart  count by action</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -83,7 +83,7 @@
       <chart>
         <title>Categories</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | stats count by client.app_name</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | stats count by client.app_name</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -97,7 +97,7 @@
       <chart>
         <title>Types</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | stats count by client.os_name</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | stats count by client.os_name</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -111,7 +111,7 @@
       <chart>
         <title>Actions</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | stats count by action</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | stats count by action</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -126,7 +126,7 @@
       <chart>
         <title>Top Item Users</title>
         <search>
-          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id=$tenant_id$ | stats count by user.$top_users_by$ | sort - count</query>
+          <query>`1password_item_usages_index` sourcetype="1password:insights:item_usages" tenant_id="$tenant_id$" | stats count by user.$top_users_by$ | sort - count</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>

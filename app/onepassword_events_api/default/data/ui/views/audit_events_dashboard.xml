@@ -27,7 +27,7 @@
       <map>
         <title>Audit Events Map</title>
         <search>
-          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id=$tenant_id$ | iplocation session.ip | lookup geo_countries longitude as lon, latitude as lat | stats count by Country | geom geo_countries featureIdField=Country</query>
+          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id="$tenant_id$" | iplocation session.ip | lookup geo_countries longitude as lon, latitude as lat | stats count by Country | geom geo_countries featureIdField=Country</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -47,7 +47,7 @@
       <chart>
         <title>Audit Events by Actions</title>
         <search>
-          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id=$tenant_id$ | timechart count by action</query>
+          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id="$tenant_id$" | timechart count by action</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -60,7 +60,7 @@
       <chart>
         <title>Audit Events by Actors</title>
         <search>
-          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id=$tenant_id$ | timechart  count by actor_uuid</query>
+          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id="$tenant_id$" | timechart  count by actor_uuid</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -75,7 +75,7 @@
       <chart>
         <title>Actions</title>
         <search>
-          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id=$tenant_id$ | stats count by action</query>
+          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id="$tenant_id$" | stats count by action</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -89,7 +89,7 @@
       <chart>
         <title>Object Types</title>
         <search>
-          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id=$tenant_id$ | stats count by object_type</query>
+          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id="$tenant_id$" | stats count by object_type</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>
@@ -104,7 +104,7 @@
       <chart>
         <title>Top Audit Event Actors</title>
         <search>
-          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id=$tenant_id$ | stats count by actor_uuid | sort - count</query>
+          <query>`1password_audit_events_index` sourcetype="1password:insights:audit_events" tenant_id="$tenant_id$" | stats count by actor_uuid | sort - count</query>
           <earliest>$field1.earliest$</earliest>
           <latest>$field1.latest$</latest>
         </search>

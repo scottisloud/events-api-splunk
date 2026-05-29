@@ -53,11 +53,17 @@ type SplunkEnv struct {
 	ConfigPath string
 	Config     Config
 	Tenants    map[string]TenantConfig
+	Cleanup    CleanupConfig
+}
+
+type CleanupConfig struct {
+	PendingKeys string `toml:"pendingKeys"`
 }
 
 type rawConfigFile struct {
-	Config  Config                   `toml:"config"`
-	Tenants map[string]TenantConfig  `toml:"tenant"`
+	Config  Config                  `toml:"config"`
+	Tenants map[string]TenantConfig `toml:"tenant"`
+	Cleanup CleanupConfig           `toml:"cleanup"`
 }
 
 const (
@@ -96,6 +102,7 @@ func NewSplunkEnv(splunkHome string) (*SplunkEnv, error) {
 	if raw.Tenants != nil {
 		sc.Tenants = raw.Tenants
 	}
+	sc.Cleanup = raw.Cleanup
 
 	return &sc, nil
 }
@@ -186,14 +193,30 @@ func (e *SplunkEnv) buildTenantRuntime(tenantKey string, tc TenantConfig, legacy
 			return TenantRuntime{}, err
 		}
 	}
+	if err := utils.ValidateSecretNameForTenant(secretName, tenantKey); err != nil {
+		return TenantRuntime{}, fmt.Errorf("tenant %q: %w", tenantKey, err)
+	}
+
+	signInCursor, err := validateCursorConfigPath(e.Home, tenantKey, tc.SignInCursorFile, e.Config.SignInCursorFile, legacy, "signin_cursor_store")
+	if err != nil {
+		return TenantRuntime{}, fmt.Errorf("tenant %q: %w", tenantKey, err)
+	}
+	itemUsageCursor, err := validateCursorConfigPath(e.Home, tenantKey, tc.ItemUsageCursorFile, e.Config.ItemUsageCursorFile, legacy, "itemusage_cursor_store")
+	if err != nil {
+		return TenantRuntime{}, fmt.Errorf("tenant %q: %w", tenantKey, err)
+	}
+	auditEventsCursor, err := validateCursorConfigPath(e.Home, tenantKey, tc.AuditEventsCursorFile, e.Config.AuditEventsCursorFile, legacy, "auditevents_cursor_store")
+	if err != nil {
+		return TenantRuntime{}, fmt.Errorf("tenant %q: %w", tenantKey, err)
+	}
 
 	cfg := Config{
 		Url:                   firstNonEmpty(tc.Url, e.Config.Url),
 		Limit:                 firstPositiveInt(tc.Limit, e.Config.Limit, 100),
 		StartAt:               firstNonZeroTime(tc.StartAt, e.Config.StartAt),
-		SignInCursorFile:      cursorPath(tenantKey, tc.SignInCursorFile, e.Config.SignInCursorFile, legacy, "signin_cursor_store"),
-		ItemUsageCursorFile:   cursorPath(tenantKey, tc.ItemUsageCursorFile, e.Config.ItemUsageCursorFile, legacy, "itemusage_cursor_store"),
-		AuditEventsCursorFile: cursorPath(tenantKey, tc.AuditEventsCursorFile, e.Config.AuditEventsCursorFile, legacy, "auditevents_cursor_store"),
+		SignInCursorFile:      signInCursor,
+		ItemUsageCursorFile:   itemUsageCursor,
+		AuditEventsCursorFile: auditEventsCursor,
 		TenantID:              tenantID,
 	}
 
@@ -208,6 +231,14 @@ func (e *SplunkEnv) buildTenantRuntime(tenantKey string, tc TenantConfig, legacy
 		Enabled:    true,
 		Config:     cfg,
 	}, nil
+}
+
+func validateCursorConfigPath(splunkHome, tenantKey, tenantValue, legacyValue string, legacy bool, baseName string) (string, error) {
+	configPath := cursorPath(tenantKey, tenantValue, legacyValue, legacy, baseName)
+	if _, err := ResolveCursorFile(splunkHome, configPath); err != nil {
+		return "", err
+	}
+	return configPath, nil
 }
 
 func cursorPath(tenantKey, tenantValue, legacyValue string, legacy bool, baseName string) string {
@@ -257,7 +288,55 @@ func firstNonZeroTime(values ...time.Time) time.Time {
 	return time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 }
 
-func (e *SplunkEnv) UpdateConfig(newConfig Config) error {
+// ConsumePendingCursorCleanups deletes cursor files queued for removal and clears the queue.
+func (e *SplunkEnv) ConsumePendingCursorCleanups() error {
+	pending := strings.TrimSpace(e.Cleanup.PendingKeys)
+	if pending == "" {
+		return nil
+	}
+
+	var remaining []string
+	for _, key := range strings.Split(pending, ",") {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if err := DeleteTenantCursorFiles(e.Home, key); err != nil {
+			remaining = append(remaining, key)
+		}
+	}
+
+	e.Cleanup.PendingKeys = strings.Join(remaining, ",")
+	return e.writeRawConfig(rawConfigFile{
+		Config:  e.Config,
+		Tenants: e.Tenants,
+		Cleanup: e.Cleanup,
+	})
+}
+
+// QueueCursorCleanup appends a tenant key to the pending cursor cleanup list.
+func (e *SplunkEnv) QueueCursorCleanup(tenantKey string) error {
+	if err := utils.ValidateTenantKey(tenantKey); err != nil {
+		return err
+	}
+	for _, key := range strings.Split(e.Cleanup.PendingKeys, ",") {
+		if strings.TrimSpace(key) == tenantKey {
+			return nil
+		}
+	}
+	if e.Cleanup.PendingKeys == "" {
+		e.Cleanup.PendingKeys = tenantKey
+	} else {
+		e.Cleanup.PendingKeys += "," + tenantKey
+	}
+	return e.writeRawConfig(rawConfigFile{
+		Config:  e.Config,
+		Tenants: e.Tenants,
+		Cleanup: e.Cleanup,
+	})
+}
+
+func (e *SplunkEnv) writeRawConfig(raw rawConfigFile) error {
 	configTemp := e.ConfigPath + "_" + strconv.Itoa(os.Getpid())
 	configFile, err := os.Create(configTemp)
 	if err != nil {
@@ -265,18 +344,25 @@ func (e *SplunkEnv) UpdateConfig(newConfig Config) error {
 	}
 	defer configFile.Close()
 
-	raw := rawConfigFile{
-		Config:  newConfig,
-		Tenants: e.Tenants,
-	}
 	encoder := toml.NewEncoder(configFile)
 	if err := encoder.Encode(raw); err != nil {
 		return fmt.Errorf("could not write toml to file: %w", err)
 	}
-
 	if err := os.Rename(configTemp, e.ConfigPath); err != nil {
 		return fmt.Errorf("could not overwrite previous config: %w", err)
 	}
-	e.Config = newConfig
+	e.Config = raw.Config
+	if raw.Tenants != nil {
+		e.Tenants = raw.Tenants
+	}
+	e.Cleanup = raw.Cleanup
 	return nil
+}
+
+func (e *SplunkEnv) UpdateConfig(newConfig Config) error {
+	return e.writeRawConfig(rawConfigFile{
+		Config:  newConfig,
+		Tenants: e.Tenants,
+		Cleanup: e.Cleanup,
+	})
 }

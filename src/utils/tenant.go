@@ -80,6 +80,37 @@ func ValidateTenantKey(tenantKey string) error {
 	return nil
 }
 
+// ValidateSecretNameForTenant ensures a configured secret name matches the tenant key.
+func ValidateSecretNameForTenant(secretName, tenantKey string) error {
+	expected, err := SecretNameForTenant(tenantKey)
+	if err != nil {
+		return err
+	}
+	if secretName != expected {
+		return fmt.Errorf("secretName %q does not match tenant_key %q (expected %q)", secretName, tenantKey, expected)
+	}
+	return nil
+}
+
+// ValidateTokenTenantKey checks that a JWT audience maps to the configured tenant key.
+// The legacy default tenant uses a fixed key and is exempt from audience binding.
+func ValidateTokenTenantKey(claims *JWTClaims, tenantKey string) error {
+	if tenantKey == DefaultTenantKey {
+		return nil
+	}
+	if len(claims.Audience) == 0 {
+		return fmt.Errorf("token missing audience for tenant_key %q", tenantKey)
+	}
+	derivedKey, err := TenantKeyFromAudience(claims.Audience[0])
+	if err != nil {
+		return fmt.Errorf("invalid token audience for tenant_key %q: %w", tenantKey, err)
+	}
+	if derivedKey != tenantKey {
+		return fmt.Errorf("token audience does not match tenant_key %q (aud maps to %q)", tenantKey, derivedKey)
+	}
+	return nil
+}
+
 // TenantIDFromAudience creates a default human-readable tenant_id from aud when none is provided.
 func TenantIDFromAudience(audience string) (string, error) {
 	id, err := TenantKeyFromAudience(audience)

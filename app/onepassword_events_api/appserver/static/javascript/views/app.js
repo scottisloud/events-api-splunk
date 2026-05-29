@@ -80,6 +80,7 @@ export default class SetupPage extends React.Component {
       console.log(error);
       return {
         error:
+          error.message ||
           "Something went wrong while storing your token - please try again.",
         success: false,
       };

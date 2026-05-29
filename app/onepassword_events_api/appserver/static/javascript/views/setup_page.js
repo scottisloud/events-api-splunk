@@ -4,6 +4,11 @@ import * as Config from "./setup_configuration";
 import * as Splunk from "./splunk_helpers";
 import * as StoragePasswords from "./storage_passwords";
 import { promisify } from "./util.js";
+import {
+  introspectEventsToken,
+  parseJWTPayload,
+  validateTenantKey,
+} from "./tenant_helpers.js";
 
 const INPUTS_CONF = "inputs";
 
@@ -103,6 +108,23 @@ export async function listTenants(splunk_js_sdk) {
 }
 
 export async function addTenant(splunk_js_sdk, authToken, tenantKey, tenantId) {
+  const keyError = validateTenantKey(tenantKey);
+  if (keyError) {
+    throw new Error(keyError);
+  }
+
+  const parsed = parseJWTPayload(authToken);
+  if (parsed.error) {
+    throw new Error(parsed.error);
+  }
+  const introspectError = await introspectEventsToken(
+    authToken,
+    parsed.payload.aud[0]
+  );
+  if (introspectError) {
+    throw new Error(introspectError);
+  }
+
   const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
     splunk_js_sdk,
     onepassword_name_space
@@ -162,6 +184,8 @@ export async function removeTenant(splunk_js_sdk, tenantKey) {
   await promisify(stanza.fetch)();
   await promisify(stanza.remove)();
 
+  await queueCursorCleanup(splunk_js_sdk_service, tenantKey);
+
   await StoragePasswords.delete_secret(
     splunk_js_sdk_service,
     SECRET_REALM,
@@ -174,6 +198,38 @@ export async function removeTenant(splunk_js_sdk, tenantKey) {
   );
 }
 
+async function queueCursorCleanup(splunk_js_sdk_service, tenantKey) {
+  let pendingKeys = "";
+  const conf = await Splunk.get_configuration_file_accessor(
+    splunk_js_sdk_service,
+    CUSTOM_CONF
+  );
+  if (conf && doesStanzaExist(conf, "cleanup")) {
+    const cleanup = conf.item("cleanup");
+    await promisify(cleanup.fetch)();
+    pendingKeys = cleanup.properties().pendingKeys || "";
+  }
+
+  const keys = pendingKeys
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean);
+  if (!keys.includes(tenantKey)) {
+    keys.push(tenantKey);
+  }
+
+  await Splunk.update_configuration_file(
+    splunk_js_sdk_service,
+    CUSTOM_CONF,
+    "cleanup",
+    { pendingKeys: keys.join(",") }
+  );
+}
+
+function doesStanzaExist(configuration_file_accessor, stanza_name) {
+  return configuration_file_accessor.list().some((stanza) => stanza.name === stanza_name);
+}
+
 export async function perform(
   splunk_js_sdk,
   authToken,
@@ -182,6 +238,18 @@ export async function perform(
   itemusage_options,
   auditevents_options
 ) {
+  const parsed = parseJWTPayload(authToken);
+  if (parsed.error) {
+    throw new Error(parsed.error);
+  }
+  const introspectError = await introspectEventsToken(
+    authToken,
+    parsed.payload.aud[0]
+  );
+  if (introspectError) {
+    throw new Error(introspectError);
+  }
+
   // Create the Splunk JS SDK Service object
   const splunk_js_sdk_service = Config.create_splunk_js_sdk_service(
     splunk_js_sdk,

@@ -31,3 +31,25 @@ func TestSecretNameForTenant(t *testing.T) {
 		t.Fatalf("got %q err %v", name, err)
 	}
 }
+
+func TestValidateSecretNameForTenant(t *testing.T) {
+	if err := ValidateSecretNameForTenant("events_api_token_acme", "acme"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateSecretNameForTenant("events_api_token", "acme"); err == nil {
+		t.Fatal("expected mismatch error")
+	}
+}
+
+func TestValidateTokenTenantKey(t *testing.T) {
+	claims := &JWTClaims{Audience: []string{"events.1password.com"}}
+	if err := ValidateTokenTenantKey(claims, "events_1password_com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateTokenTenantKey(claims, DefaultTenantKey); err != nil {
+		t.Fatal("default tenant should skip audience binding")
+	}
+	if err := ValidateTokenTenantKey(claims, "wrong_key"); err == nil {
+		t.Fatal("expected audience mismatch error")
+	}
+}

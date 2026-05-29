@@ -4,6 +4,7 @@ import {
   parseJWTPayload,
   validateJWT,
   validateTenantId,
+  validateTenantKey,
   tenantKeyFromAudience,
   secretNameForTenantKey,
 } from "./tenant_helpers.js";
@@ -42,6 +43,11 @@ export default class TenantManagementPage extends React.Component {
     const parsed = parseJWTPayload(this.state.authToken);
     const audience = parsed.payload.aud[0];
     const tenantKey = tenantKeyFromAudience(audience);
+    const keyError = validateTenantKey(tenantKey);
+    if (keyError) {
+      this.setState({ result: { success: false, error: keyError } });
+      return;
+    }
 
     let tenantId = this.state.tenantId.trim();
     if (!tenantId) {
@@ -89,6 +95,7 @@ export default class TenantManagementPage extends React.Component {
         result: {
           success: false,
           error:
+            error.message ||
             "Something went wrong while adding the tenant - please try again.",
         },
       });

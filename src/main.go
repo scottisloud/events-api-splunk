@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
-	"strings"
-	"sync"
 
 	"go.1password.io/eventsapi-splunk/actions"
 	events "go.1password.io/eventsapi-splunk/api"
@@ -35,6 +32,10 @@ func main() {
 		panic(fmt.Errorf("could not create new splunk env: %w", err))
 	}
 
+	if err := splunkEnv.ConsumePendingCursorCleanups(); err != nil {
+		log.Printf("cursor cleanup failed: %v", err)
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	splunkSession, _, err := reader.ReadLine()
 	if err != nil {
@@ -48,12 +49,8 @@ func main() {
 		panic(fmt.Errorf("could not load tenants: %w", err))
 	}
 
-	var wg sync.WaitGroup
 	for _, tenant := range tenants {
-		tenant := tenant
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		func() {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Printf("tenant %q (key=%s) panic: %v", tenant.TenantID, tenant.TenantKey, r)
@@ -64,7 +61,6 @@ func main() {
 			}
 		}()
 	}
-	wg.Wait()
 }
 
 func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, tenant config.TenantRuntime) error {
@@ -95,6 +91,9 @@ func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, ten
 	if err != nil {
 		return fmt.Errorf("could not parse jwt: %w", err)
 	}
+	if err := utils.ValidateTokenTenantKey(jwt, tenant.TenantKey); err != nil {
+		return err
+	}
 
 	url := cfg.Url
 	eventsURL, err := jwt.GetEventsURL()
@@ -106,17 +105,29 @@ func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, ten
 	}
 
 	eventsAPI := events.NewEventsAPI(eventsToken, url)
+	if _, err := eventsAPI.Introspect(context.TODO()); err != nil {
+		return fmt.Errorf("token introspect failed for tenant %q: %w", tenant.TenantID, err)
+	}
 	eventsAPI.TenantID = tenant.TenantID
 	startAt := cfg.StartAt
 
 	if jwt.Features.Contains(utils.SignInAttemptsFeatureScope) && EventBuildType == utils.SignInAttemptsFeatureScope {
-		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.SignInCursorFile))
+		cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, cfg.SignInCursorFile)
+		if err != nil {
+			return fmt.Errorf("invalid sign-in cursor path: %w", err)
+		}
 		actions.StartSignIns(cursorFile, cfg.Limit, &startAt, eventsAPI)
 	} else if jwt.Features.Contains(utils.ItemUsageFeatureScope) && EventBuildType == utils.ItemUsageFeatureScope {
-		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.ItemUsageCursorFile))
+		cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, cfg.ItemUsageCursorFile)
+		if err != nil {
+			return fmt.Errorf("invalid item usage cursor path: %w", err)
+		}
 		actions.StartItemUsages(cursorFile, cfg.Limit, &startAt, eventsAPI)
 	} else if jwt.Features.Contains(utils.AuditEventsFeatureScope) && EventBuildType == utils.AuditEventsFeatureScope {
-		cursorFile := path.Join(splunkEnv.Home, trimCursorPath(cfg.AuditEventsCursorFile))
+		cursorFile, err := config.ResolveCursorFile(splunkEnv.Home, cfg.AuditEventsCursorFile)
+		if err != nil {
+			return fmt.Errorf("invalid audit events cursor path: %w", err)
+		}
 		actions.StartAuditEvents(cursorFile, cfg.Limit, &startAt, eventsAPI)
 	} else {
 		log.Printf(
@@ -126,8 +137,4 @@ func processTenant(splunkEnv *config.SplunkEnv, splunkAPI *splunk.SplunkAPI, ten
 	}
 
 	return nil
-}
-
-func trimCursorPath(p string) string {
-	return strings.Trim(p, `"`)
 }
