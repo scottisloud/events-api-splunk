@@ -5,14 +5,14 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 module.exports = {
     entry: "./appserver/static/javascript/setup_page.js",
     output: {
-        filename: "main_[contenthash].js",
+        filename: "main.js",
         publicPath: "",
         path: path.resolve(__dirname, "appserver/static/build"),
     },
     plugins: [
         new WebpackManifestPlugin(),
         new MiniCssExtractPlugin({
-            filename: "main_[contenthash].css"
+            filename: "main.css"
         }),
     ],
     module: {

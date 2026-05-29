@@ -1,6 +1,5 @@
 const replace = require("replace-in-file");
 const package = require("../package.json");
-const manifest = require("../appserver/static/build/manifest.json");
 
 const appConfVersion = {
   files: "./default/app.conf",
@@ -14,23 +13,6 @@ const appConfBuild = {
   to: `build = ${package.version.replace(/\./g, "")}`,
 };
 
-const dashboardViews = [
-  "./default/data/ui/views/setup_page_dashboard.xml",
-  "./default/data/ui/views/tenant_management_dashboard.xml",
-];
-
-const setupXMLJSHash = {
-  files: dashboardViews,
-  from: /script\=\"build\/.*\.js\"/,
-  to: `script="build/${manifest["main.js"]}"`,
-};
-
-const setupXMLCSSHash = {
-  files: dashboardViews,
-  from: /stylesheet\=\"build\/.*\.css\"/,
-  to: `stylesheet="build/${manifest["main.css"]}"`,
-};
-
 const wizardVersion = {
   files: "./appserver/static/javascript/views/setup_page.js",
   from: /export const VERSION \= ".*";/,
@@ -39,6 +21,4 @@ const wizardVersion = {
 
 replace(appConfVersion);
 replace(appConfBuild);
-replace(setupXMLJSHash);
-replace(setupXMLCSSHash);
 replace(wizardVersion);

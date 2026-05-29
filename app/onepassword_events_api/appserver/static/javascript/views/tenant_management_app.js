@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import * as Setup from "./setup_page.js";
 import {
   parseJWTPayload,
@@ -24,8 +24,18 @@ export default class TenantManagementPage extends React.Component {
   }
 
   async componentDidMount() {
-    const tenants = await Setup.listTenants(splunkjs);
-    this.setState({ tenants });
+    try {
+      const tenants = await Setup.listTenants(splunkjs);
+      this.setState({ tenants });
+    } catch (error) {
+      console.log(error);
+      this.setState({
+        result: {
+          success: false,
+          error: "Could not load tenant configuration.",
+        },
+      });
+    }
   }
 
   refreshTenants = async () => {
